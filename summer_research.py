@@ -6,6 +6,8 @@ import numpy as np
 import astropy.table as t
 import matplotlib.image as img
 from scipy.optimize import newton
+from pathlib import Path
+import math
 #from marvin.tools.cube import Cube
 '''
 import urllib.request
@@ -60,7 +62,8 @@ def get_line_ew(maps,key,sn=3.):
 ##fiber_num = ['1901', '1902', '3701', '3702', '3703', '3704', '6101', '6102', '6103', '6104', '9101', '9102', '12701', '12702', '12704', '12705']
 
 ##After hoefully downloading all the required fits files, this will read all the names
-file_names = os.listdir("/home/celeste/Documents/astro_research/keepers")
+#file_names = os.listdir("/home/celeste/Documents/astro_research/keepers")
+file_names = os.listdir("/home/celeste/Documents/astro_research/fits_files")
 
 ##creates the empty arrays to append the names of the files in the folder
 plate_num = []
@@ -83,233 +86,290 @@ for ii in range(0, len(file_names)):
     del split[1]
     del split[0]
 
-##Main loop over all the plates
+    ##Main loop over all the plates
 for i in range(0, len(plate_num)): ##len(plate_num)
-    ##for j in range(0, len(fiber_num)):
-	    print(plate_num[i] + '-' + fiber_num[i])
-	    print("Index: " + str(i))
-	    ##some black magic
-	    hdulist = fits.open('/home/celeste/Documents/astro_research/keepers/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
+##for j in range(0, len(fiber_num)):
+        print(plate_num[i] + '-' + fiber_num[i])
+        print("Index: " + str(i))
+        ##some black magic
+        #hdulist = fits.open('/home/celeste/Documents/astro_research/keepers/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
+        hdulist = fits.open('/home/celeste/Documents/astro_research/fits_files/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
 
-	    ##gets the hydrogen alpha and hydrogen beta data
-	    hd2 = hdulist['SPX_ELLCOO'].data
-	    Ha = hdulist['EMLINE_GFLUX'].data[7,...] ##21 element array
-	    Hb = hdulist['EMLINE_GFLUX'].data[1,...]
-	
-	    ##assigns the plate id based on what is in the data cube
-	    plate_id = hdulist['PRIMARY'].header['PLATEIFU']
-	
-	    ##gets official plate number
-	    plate_number = hdulist['PRIMARY'].header['PLATEID']
-	    fiber_number = hdulist['PRIMARY'].header['IFUDSGN']
-	
-	    #print(hdulist['PRIMARY'].header)
-	
-	    #quit()
-	
-	    ##Imports the thingy we need to get the images of the galaxy without having to download directly all the pictures. This also bypasses the password needed
-	    import requests
-	    r = requests.get('https://data.sdss.org/sas/mangawork/manga/spectro/redux/v2_0_1/' + str(plate_number) + '/stack/images/' + str(fiber_number) + '.png', auth=('sdss', '2.5-meters'))
+        ##gets the hydrogen alpha and hydrogen beta data
+        hd2 = hdulist['SPX_ELLCOO'].data
+        Ha = hdulist['EMLINE_GFLUX'].data[7,...] ##21 element array
+        Hb = hdulist['EMLINE_GFLUX'].data[1,...]
 
-	    ##Saves the image
-	    with open('/home/celeste/Documents/astro_research/astro_images/marvin_images/' + str(plate_id) + '.png', 'wb') as fd:
-		    for chunk in r.iter_content(chunk_size=128):
-			    fd.write(chunk)
-			
+        ##assigns the plate id based on what is in the data cube
+        plate_id = hdulist['PRIMARY'].header['PLATEIFU']
+
+        ##gets official plate number
+        plate_number = hdulist['PRIMARY'].header['PLATEID']
+        fiber_number = hdulist['PRIMARY'].header['IFUDSGN']
+
+        #print(hdulist['PRIMARY'].header)
+
+        #quit()
+
+        ##Imports the thingy we need to get the images of the galaxy without having to download directly all the pictures. This also bypasses the password needed
+        import requests
+        r = requests.get('https://data.sdss.org/sas/mangawork/manga/spectro/redux/v2_0_1/' + str(plate_number) + '/stack/images/' + str(fiber_number) + '.png', auth=('sdss', '2.5-meters'))
+
+        ##Saves the image
+        with open('/home/celeste/Documents/astro_research/astro_images/marvin_images/' + str(plate_id) + '.png', 'wb') as fd:
+	        for chunk in r.iter_content(chunk_size=128):
+		        fd.write(chunk)
+		
+	
+
+        ##Also need OIII 5007 and NII 6584
+
+        ##Gets the correct lines
+        H_alpha = get_line_ew(hdulist, 'Ha-6564')
+        H_beta = get_line_ew(hdulist, 'Hb-4862')
+
+
+        OIII = get_line_ew(hdulist, 'OIII-5008')
+        NII = get_line_ew(hdulist, 'NII-6585')
+
+        ##line ratios
+        #x: n2/Halpha (plot the log)
+        O_B = OIII/H_beta
+
+        N_A = NII/H_alpha
+
+        R = O_B/N_A	
+        logR = np.log(R)
+
+
+        c0 = 0.281
+        c1 = (-4.765)
+        c2 = (-2.268)
+
+        cs = np.array([c0, c1, c2])
+
+
+        ##A lambda function, do not touch!
+        x2logR = lambda x, cs: np.sum((c*x**p for p,c in zip(np.linspace(0, len(cs)-1, len(cs)), cs)))
+
+        x2logR_zero = lambda x, cs, logR: x2logR(x, cs)-logR-0.001
+
+        ##takes the log of the OH12 array
+        logOH12 = np.ma.array(np.zeros(logR.shape),mask=logR.mask)
+        
+
+        ##Not sure what this is either
+        ##This is the logOH12 issue here
+        print(*logR.shape)
+        for ii, jj in np.ndindex(*logR.shape):
+	        if logR.mask[ii,jj]:continue
+	        try:
+		        logOH12[ii, jj] = newton(x2logR_zero,x0=.1,args=(cs, logR[ii,jj]))+8.69
+	        except (SystemExit, KeyboardInterrupt):
+		        raise
+	        except:
+		        pass
+        print(len(logOH12))
+		        
+	
+        #print("average ", np.ma.median(np.log10(R)))
+
+        #xplus = (-c1 + np.sqrt(c1**2 - 4*(c0-np.log10(R))*(c2)))/(2*c2)
+        #xminus =(-c1 - np.sqrt(c1**2 - 4*(c0-np.log10(R))*(c2)))/(2*c2)
+        #print((~(xplus.mask)).sum())
+        #print((xminus<0).sum())
+        #pows = np.linspace(0, 2, 3)
+        #x = np.sum([c*(R**p) for p, c in zip(pows,cs)])
+        #logOH12 = np.log10(np.absolute(xminus))+8.69
+        #print((~(logOH12.mask)).sum())
+		
+        ##Gets rid of the Ha value if it is ridiculously high		
+        for l in range(len(Ha)):
+	        for m in range(len(Ha[0])):
+		        if (Ha[l][m] > 150):
+			        Ha[l][m] = 0
+		
+        ##Finds the standard deviation and mean for future use	
+        std_dev = np.std(Ha)
+        mean = np.mean(Ha)	
+		
+        ##if it deviates too much from the mean it is removed		
+        for j in range(len(Ha)):
+	        for k in range(len(Ha[0])):
+		        if (Ha[j][k] > std_dev*20+mean):
+			        Ha[j][k] = 0
 		
 
-	    ##Also need OIII 5007 and NII 6584
+        ##Creates a shape that is the same size as the h-alpha array	
+        shape = (Ha.shape[1])
+        shapemap = [-.5*shape, .5*shape, -.5*shape, .5*shape]
 
-	    ##Gets the correct lines
-	    H_alpha = get_line_ew(hdulist, 'Ha-6564')
-	    H_beta = get_line_ew(hdulist, 'Hb-4862')
+        ##Changes the font size
+        matplotlib.rcParams.update({'font.size': 20})
+        #Second image we want?
+        fig = plt.figure(figsize=(30,18))
+        #plt.plot(hd2[0], Ha[7])
+        #sky coordinates relative to center
+        #exent = .5
 
-	
-	    OIII = get_line_ew(hdulist, 'OIII-5008')
-	    NII = get_line_ew(hdulist, 'NII-6585')
+        ##places text on the plot
+        plateifu = plate_id
 
-	    ##line ratios
-	    #x: n2/Halpha (plot the log)
-	    O_B = OIII/H_beta
+        ##Adds to the plot
+        ##Is 2by3 and this is the second image
+        a = fig.add_subplot(2,3,2)
+        imgplot = plt.imshow(Ha, cmap = "viridis", extent = shapemap)
+        plt.gca().invert_yaxis()
+        plt.xlabel('Arcseconds')
+        plt.ylabel('Arcseconds')
+        cb = plt.colorbar(shrink = .7)
+        cb.set_label('H-alpha flux [$10^{17} {erg/s/cm^2/pix}$]',
+        rotation = 270, labelpad = 25)
+        #plt.xlim, plt.ylim
 
-	    N_A = NII/H_alpha
 
-	    R = O_B/N_A	
-	    logR = np.log(R)
+        drpall = t.Table.read('/home/celeste/Documents/astro_research/drpall-v2_0_1.fits')
+        r = hdulist['SPX_ELLCOO'].data[0, ...]
+        obj = drpall[drpall['plateifu']==plateifu][0]
+        Re = obj['nsa_elpetro_th50_r']
+        #radius of each spec in 
+        r_Re = r/Re	
+
+        mass = obj['nsa_sersic_mass']
+
+        """
+        fig.text(0.12, 0.45, 'ID: ' + plateifu, fontsize=30)
+        fig.text(0.12, 0.40, 'Mass:', fontsize=30)
+        fig.text(0.12, 0.35, str(mass) + "$\log_{10}{\frac{M}{M_{\odot}}}$", fontsize = 25)
+        fig.text(0.12, 0.30, 'MARVIN Link: ', fontsize=30)
+        fig.text(0.12, 0.28, 'https://sas.sdss.org/marvin2/galaxy/' + plateifu, fontsize=15)
+        """
 
 
-	    c0 = 0.281
-	    c1 = (-4.765)
-	    c2 = (-2.268)
+        ##Makes a mask
+        mask = (Ha==0).flatten()
+        ##Adds another subplot
+        a = fig.add_subplot(2,3,3)
+        ##Makes  a scatter plot of the data
+        imgplot = plt.scatter(r_Re.flatten()[~mask], Ha.flatten()[~mask])
+        plt.xlabel("Effective Radii r/$R_e$")
+        plt.ylabel('H-alpha flux [$10^{17} {erg/s/cm^2/pix}$]')
+        ##Finds the maximum and puts it in the plot
+        r_max = np.amax(r_Re.flatten()[~mask])
+        Ha_max = np.amax(Ha.flatten()[~mask])
+        plt.xlim(0,r_max)
+        plt.ylim(0,Ha_max)
 
-	    cs = np.array([c0, c1, c2])
-	
-	
-	    ##A lambda function, do not touch!
-	    x2logR = lambda x, cs: np.sum((c*x**p for p,c in zip(np.linspace(0, len(cs)-1, len(cs)), cs)))
+        ##Adds another subplot with the plateifu
+        a = fig.add_subplot(2,3,1)
+        image = img.imread('/home/celeste/Documents/astro_research/astro_images/marvin_images/' + plateifu + '.png')
+        lum_img = image[:,:,0]
+        #plt.subplot(121)
+        imgplot = plt.imshow(image)
+        
 
-	    x2logR_zero = lambda x, cs, logR: x2logR(x, cs)-logR-0.001
+        #print((~(logOH12.mask)).sum())
 
-	    ##takes the log of the OH12 array
-	    logOH12 = np.ma.array(np.zeros(logR.shape),mask=logR.mask)
-	    
+        for a in range(len(logOH12)):
+	        for b in range(len(logOH12[0])):
+		        if (logOH12[a][b] < 7):
+			        logOH12[a][b] = None
+			        
+		        #Add bpt diagram
 
-	    ##Not sure what this is either
-	    ##This is the logOH12 issue here
-	    print(*logR.shape)
-	    for ii, jj in np.ndindex(*logR.shape):
-		    if logR.mask[ii,jj]:continue
-		    try:
-			    logOH12[ii, jj] = newton(x2logR_zero,x0=.1,args=(cs, logR[ii,jj]))+8.69
-		    except (SystemExit, KeyboardInterrupt):
-			    raise
-		    except:
-			    pass
-	    print(len(logOH12))
-			    
-		
-	    #print("average ", np.ma.median(np.log10(R)))
+        #check for pre existence of bpt plot:
 
-	    #xplus = (-c1 + np.sqrt(c1**2 - 4*(c0-np.log10(R))*(c2)))/(2*c2)
-	    #xminus =(-c1 - np.sqrt(c1**2 - 4*(c0-np.log10(R))*(c2)))/(2*c2)
-	    #print((~(xplus.mask)).sum())
-	    #print((xminus<0).sum())
-	    #pows = np.linspace(0, 2, 3)
-	    #x = np.sum([c*(R**p) for p, c in zip(pows,cs)])
-	    #logOH12 = np.log10(np.absolute(xminus))+8.69
-	    #print((~(logOH12.mask)).sum())
+        bpt_file=Path("/home/celeste/Documents/astro_research/astro_images/bpt_diagrams/bpt_" + str(plateifu) + ".png")
+
+        if bpt_file.is_file():
+            a=fig.add_subplot(2, 3, 4)
+            image=img.imread("/home/celeste/Documents/astro_research/astro_images/bpt_diagrams/bpt_" + str(plateifu) + ".png")
+            lum_img = image[:,:,0]
+            imgplot=plt.imshow(image)
+        else:
+            print("Image not found. Plotting BPT manually...")
+            print(plateifu)
+            
+            zeros= False
+            for element in range(0, len(O_B)):
+                for item in range(0, len(O_B[element])):
+                    if O_B[element][item] >= 0:
+                        zeros = True
+            
+            ax = fig.add_subplot(2, 3, 4)
+            if zeros == True:
+                #fig = plt.figure()
+                #ax.set_xscale("log")
+                #ax.set_yscale("log")
+                minx=1000000
+                maxx=-1000000
+                miny=1000000
+                maxy=-1000000
+                ax.set_aspect(1)
+                ax.set_title("BPT Diagram for " + str(plate_number) + "-" + str(fiber_number))
+                for element in range(0, len(O_B)):
+                    for item in range(0, len(O_B[element])):
+                        if (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.47)+1.19) and (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.05)+1.3) and (math.log10(N_A[element][item])<0.0):
+                            #print("red dot")
+                            ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "red", marker = ".", ls = "None")
+                    else:
+                        ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "gray", marker = ".", ls = "None")
+
+            #Kewley
+            X = np.linspace(-1.5, 0.3)
+            Y = ((0.61/(X-0.47))+1.19)
+            
+            #Kauffmann
+            Xk = np.linspace(-1.5,0.)
+            Yk= (0.61/(Xk-0.05)+1.3)
+            
+            
+            ax.plot(X, Y, '--', color = "red", lw = 1, label = "Kewley+01")
+            ax.plot(Xk, Yk, '-', color = "blue", lw = 1, label = "Kauffmann+03")
+            ax.set_xlim(-1.2, 1.2)
+            ax.set_ylim(-1.5, 1)
+			        
+
+        a = fig.add_subplot(2, 3, 6)
+        imgplot = plt.scatter(r_Re.flatten(), logOH12.flatten()) #.flatten
+        plt.xlabel("Effective Radii r/$R_e$")
+        plt.ylabel('12+log(O/H)')
+        plt.scatter(r_Re.flatten(), logOH12.flatten())
+        #plt.ylim(8,9)
+        #plt.xlim(0, 2.25)
+        #plt.show()
+
+        shape = (logOH12.shape[1])
+        shapemap = [-.5*shape, .5*shape, -.5*shape, .5*shape]
+
+        #logOH12_flat = logOH12.flatten()
+        
+        print(len(logOH12))
+        print(logOH12[30])
+
+        print("--------")
 			
-	    ##Gets rid of the Ha value if it is ridiculously high		
-	    for l in range(len(Ha)):
-		    for m in range(len(Ha[0])):
-			    if (Ha[l][m] > 150):
-				    Ha[l][m] = 0
-			
-	    ##Finds the standard deviation and mean for future use	
-	    std_dev = np.std(Ha)
-	    mean = np.mean(Ha)	
-			
-	    ##if it deviates too much from the mean it is removed		
-	    for j in range(len(Ha)):
-		    for k in range(len(Ha[0])):
-			    if (Ha[j][k] > std_dev*20+mean):
-				    Ha[j][k] = 0
-			
-	
-	    ##Creates a shape that is the same size as the h-alpha array	
-	    shape = (Ha.shape[1])
-	    shapemap = [-.5*shape, .5*shape, -.5*shape, .5*shape]
-
-	    ##Changes the font size
-	    matplotlib.rcParams.update({'font.size': 20})
-	    #Second image we want?
-	    fig = plt.figure(figsize=(30,18))
-	    #plt.plot(hd2[0], Ha[7])
-	    #sky coordinates relative to center
-	    #exent = .5
-
-	    ##places text on the plot
-	    plateifu = plate_id
-	
-	    ##Adds to the plot
-	    ##Is 2by3 and this is the second image
-	    a = fig.add_subplot(2,3,2)
-	    imgplot = plt.imshow(Ha, cmap = "viridis", extent = shapemap)
-	    plt.gca().invert_yaxis()
-	    plt.xlabel('Arcseconds')
-	    plt.ylabel('Arcseconds')
-	    cb = plt.colorbar(shrink = .7)
-	    cb.set_label('H-alpha flux [$10^{17} {erg/s/cm^2/pix}$]',
-	    rotation = 270, labelpad = 25)
-	    #plt.xlim, plt.ylim
+        matplotlib.rcParams.update({'font.size': 20})
+        #Second image we want?
+        #plt.plot(hd2[0], Ha[7])
+        #sky coordinates relative to center
+        #exent = .5
+        a = fig.add_subplot(2,3,5)
+        imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap)
+        plt.gca().invert_yaxis()
+        plt.xlabel('Arcseconds')
+        plt.ylabel('Arcseconds')
+        cb = plt.colorbar(shrink = .7)
+        cb.set_label('log(OH) + 12', rotation = 270, labelpad = 25)
+        #plt.xlim, plt.ylim
 
 
-	    drpall = t.Table.read('drpall-v2_0_1.fits')
-	    r = hdulist['SPX_ELLCOO'].data[0, ...]
-	    obj = drpall[drpall['plateifu']==plateifu][0]
-	    Re = obj['nsa_elpetro_th50_r']
-	    #radius of each spec in 
-	    r_Re = r/Re	
-	
-	    mass = obj['nsa_sersic_mass']
-
-	
-	    fig.text(0.12, 0.45, 'ID: ' + plateifu, fontsize=30)
-	    fig.text(0.12, 0.40, 'Mass:', fontsize=30)
-	    fig.text(0.12, 0.35, str(mass) + "$\log_{10}{\frac{M}{M_{\odot}}}$", fontsize = 25)
-	    fig.text(0.12, 0.30, 'MARVIN Link: ', fontsize=30)
-	    fig.text(0.12, 0.28, 'https://sas.sdss.org/marvin2/galaxy/' + plateifu, fontsize=15)
-
-	
-	    ##Makes a mask
-	    mask = (Ha==0).flatten()
-	    ##Adds another subplot
-	    a = fig.add_subplot(2,3,3)
-	    ##Makes  a scatter plot of the data
-	    imgplot = plt.scatter(r_Re.flatten()[~mask], Ha.flatten()[~mask])
-	    plt.xlabel("Effective Radii r/$R_e$")
-	    plt.ylabel('H-alpha flux [$10^{17} {erg/s/cm^2/pix}$]')
-	    ##Finds the maximum and puts it in the plot
-	    r_max = np.amax(r_Re.flatten()[~mask])
-	    Ha_max = np.amax(Ha.flatten()[~mask])
-	    plt.xlim(0,r_max)
-	    plt.ylim(0,Ha_max)
-
-	    ##Adds another subplot with the plateifu
-	    a = fig.add_subplot(2,3,1)
-	    image = img.imread('/home/celeste/Documents/astro_research/astro_images/marvin_images/' + plateifu + '.png')
-	    lum_img = image[:,:,0]
-	    #plt.subplot(121)
-	    imgplot = plt.imshow(image)
-
-
-	    #print((~(logOH12.mask)).sum())
-	
-	    for a in range(len(logOH12)):
-		    for b in range(len(logOH12[0])):
-			    if (logOH12[a][b] < 7):
-				    logOH12[a][b] = None
-				    
-
-	    a = fig.add_subplot(2, 3, 6)
-	    imgplot = plt.scatter(r_Re.flatten(), logOH12.flatten()) #.flatten
-	    plt.xlabel("Effective Radii r/$R_e$")
-	    plt.ylabel('12+log(O/H)')
-	    plt.scatter(r_Re.flatten(), logOH12.flatten())
-	    #plt.ylim(8,9)
-	    #plt.xlim(0, 2.25)
-	    #plt.show()
-
-	    shape = (logOH12.shape[1])
-	    shapemap = [-.5*shape, .5*shape, -.5*shape, .5*shape]
-
-	    #logOH12_flat = logOH12.flatten()
-	    
-	    print(len(logOH12))
-	    print(logOH12[30])
-	
-	    print("--------")
-				
-	    matplotlib.rcParams.update({'font.size': 20})
-	    #Second image we want?
-	    #plt.plot(hd2[0], Ha[7])
-	    #sky coordinates relative to center
-	    #exent = .5
-	    a = fig.add_subplot(2,3,5)
-	    imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap)
-	    plt.gca().invert_yaxis()
-	    plt.xlabel('Arcseconds')
-	    plt.ylabel('Arcseconds')
-	    cb = plt.colorbar(shrink = .7)
-	    cb.set_label('log(OH) + 12', rotation = 270, labelpad = 25)
-	    #plt.xlim, plt.ylim
-	    
-
-	    ##Saves the final image
-	    plt.savefig('/home/celeste/Documents/astro_research/astro_images/keeper_images/6_images_' + plateifu, bbox_inches = 'tight')
-	    #plt.show()
-	    plt.close() 
-	    #quit()
+            
+        ##Saves the final image
+        plt.savefig('/home/celeste/Documents/astro_research/astro_images/testing_images/6_images_' + plateifu, bbox_inches = 'tight')
+        #plt.show()
+        plt.close() 
+        #quit()
 
 	    #plt.savefig('/home/celeste/Documents/astro_research/astro_images/six_galaxies/ha_flux_Z_' + plate_num[i] + '_' + fiber_num[i], bbox_inches = 'tight')
 

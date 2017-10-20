@@ -61,12 +61,12 @@ def get_line_ew(maps,key,sn=3.):
     ##fiber_num = ['1901', '1902', '3701', '3702', '3703', '3704', '6101', '6102', '6103', '6104', '9101', '9102', '12701', '12702', '12704', '12705']
 
     ##After hoefully downloading all the required fits files, this will read all the names
-    file_names = os.listdir("/home/celeste/Documents/astro_research/keepers")
+file_names = os.listdir("/home/celeste/Documents/astro_research/keepers")
 
     ##creates the empty arrays to append the names of the files in the folder
-    plate_num = []
-    fiber_num = []
-    split = []
+plate_num = []
+fiber_num = []
+split = []
 
     ##Goes through all files in the folder
 for ii in range(0, len(file_names)):
@@ -138,16 +138,41 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         if zeros == True:
             fig = plt.figure()
             ax = fig.add_subplot(111)
-            ax.set_xscale("log")
-            ax.set_yscale("log")
-            ax.set_aspect(.25)
+            #ax.set_xscale("log")
+            #ax.set_yscale("log")
+            minx=1000000
+            maxx=-1000000
+            miny=1000000
+            maxy=-1000000
+            ax.set_aspect(1)
             ax.set_title("BPT Diagram for " + str(plate_number) + "-" + str(fiber_number))
             for element in range(0, len(O_B)):
                 for item in range(0, len(O_B[element])):
-                    if (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.47)+1.19) and (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.05)+1.3) and (O_B[element][item]<0.0):
-                        ax.plot(N_A[element][item], O_B[element][item], color = "red", marker = ".", ls = "None")
+                    if (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.47)+1.19) and (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.05)+1.3) and (math.log10(N_A[element][item])<0.0):
+                        #print("red dot")
+                        ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "red", marker = ".", ls = "None")
+                        """
+                        if minx>(math.log10(N_A[element][item])):
+                            minx=math.log10(N_A[element][item])
+                        if maxx<(math.log10(N_A[element][item])):
+                            maxx=math.log10(N_A[element][item])
+                        if miny>(math.log10(O_B[element][item])):
+                            miny=math.log10(O_B[element][item])
+                        if maxy<(math.log10(O_B[element][item])):
+                            maxy=math.log10(O_B[element][item])
+                        """
                     else:
-                        ax.plot(N_A[element][item], O_B[element][item], color = "gray", marker = ".", ls = "None")
+                        ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "gray", marker = ".", ls = "None")
+                        """
+                        if minx>(math.log10(N_A[element][item])):
+                            minx=math.log10(N_A[element][item])
+                        if maxx<(math.log10(N_A[element][item])):
+                            maxx=math.log10(N_A[element][item])
+                        if miny>(math.log10(O_B[element][item])):
+                            miny=math.log10(O_B[element][item])
+                        if maxy<(math.log10(O_B[element][item])):
+                            maxy=math.log10(O_B[element][item])
+                        """
             #Kewley
             X = np.linspace(-1.5, 0.3)
             Y = ((0.61/(X-0.47))+1.19)
@@ -156,8 +181,11 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             Xk = np.linspace(-1.5,0.)
             Yk= (0.61/(Xk-0.05)+1.3)
             
-            ax.plot(X, Y, '-', color = "blue", lw = 3, label = "Kewley+01")
-            ax.plot(Xk, Yk, '--', color = "blue", lw = 5, label = "Kauffmann+03")
+            
+            ax.plot(X, Y, '--', color = "red", lw = 1, label = "Kewley+01")
+            ax.plot(Xk, Yk, '-', color = "blue", lw = 1, label = "Kauffmann+03")
+            ax.set_xlim(-1.2, 1.2)
+            ax.set_ylim(-1.5, 1)
             plt.draw()
             #plt.show()
             plt.savefig('/home/celeste/Documents/astro_research/astro_images/bpt_diagrams/bpt_' + str(plate_number) + "-" + str(fiber_number))
