@@ -94,6 +94,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##some black magic
         #hdulist = fits.open('/home/celeste/Documents/astro_research/keepers/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
         hdulist = fits.open('/home/celeste/Documents/astro_research/fits_files/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
+        
+        #logcube = fits.open('/home/celeste/Documents/astro_research/logcube_files/manga-10001-12702-LOGCUBE.fits')
 
         ##gets the hydrogen alpha and hydrogen beta data
         hd2 = hdulist['SPX_ELLCOO'].data
@@ -214,6 +216,109 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
         ##places text on the plot
         plateifu = plate_id
+        
+        #Add bpt diagram
+
+        #check for pre existence of bpt plot:
+
+        bpt_file=Path("/home/celeste/Documents/astro_research/astro_images/bpt_diagrams/bpt_" + str(plateifu) + ".png")
+        
+        """
+
+        if bpt_file.is_file():
+            a=fig.add_subplot(2, 3, 4)
+            image=img.imread("/home/celeste/Documents/astro_research/astro_images/bpt_diagrams/bpt_" + str(plateifu) + ".png")
+            lum_img = image[:,:,0]
+            a.axis('off')
+            imgplot=plt.imshow(image[90:500, 30:450])
+            need_new_plot=False
+        else:
+            print("Image not found. Plotting BPT manually...")
+            print(plateifu)
+        """
+        
+        
+        drpall = t.Table.read('/home/celeste/Documents/astro_research/drpall-v2_0_1.fits')
+        r = hdulist['SPX_ELLCOO'].data[0, ...]
+        obj = drpall[drpall['plateifu']==plateifu][0]
+        #nsa_sersic_ba for axis ratio
+        #axis=drpall['nsa_sersic_ba'].data[0, ...]
+        Re = obj['nsa_elpetro_th50_r']
+        #radius of each spec in 
+        r_Re = r/Re	
+
+        mass = obj['nsa_sersic_mass']
+        axis=obj['nsa_sersic_ba']
+        #closest to 1, above .8
+        print("Axis ratio: ", axis) 
+
+            
+        zeros= False
+        for element in range(0, len(O_B)):
+            for item in range(0, len(O_B[element])):
+                if O_B[element][item] >= 0:
+                    zeros = True
+        
+        ax = fig.add_subplot(2, 3, 4)
+        if zeros == True:
+            #fig = plt.figure()
+            #ax.set_xscale("log")
+            #ax.set_yscale("log")
+            
+            total=0
+            sfr=0
+            nsfr=0
+            
+            ax.set_aspect(1)
+            ax.set_title("BPT Diagram for " + str(plate_number) + "-" + str(fiber_number))
+            for element in range(0, len(O_B)):
+                for item in range(0, len(O_B[element])):
+                    if (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.47)+1.19) and (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.05)+1.3) and (math.log10(N_A[element][item])<0.0):
+                        #print("red dot")
+                        #ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "red", marker = ".", ls = "None")
+                        sfr+=1
+                        total+=1
+                    else:
+                        #ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "gray", marker = ".", ls = "None")
+                        logOH12[element][item]=np.nan
+                        Ha[element][item]=np.nan
+                        if math.isnan(math.log10(N_A[element][item])) != True:
+                            nsfr+=1
+                            total+=1
+        else:
+            continue
+                
+        print("total", total)
+        print("nsfr", nsfr)
+        print("sfr", sfr)
+        try:
+            percent_sfr=(sfr/total)
+        except ZeroDivisionError:
+            percent_sfr=0
+        print("Percent of spaxels that are star forming: ")
+        print(percent_sfr)
+        if percent_sfr <.60:
+            print("Not enough stars are Star forming.")
+            continue
+        else:
+            file=open("star_forming_galaxies.txt", "a")
+            file.write(plateifu + "\n")
+            file.close()
+            continue
+
+        #Kewley
+        X = np.linspace(-1.5, 0.3)
+        Y = ((0.61/(X-0.47))+1.19)
+        
+        #Kauffmann
+        Xk = np.linspace(-1.5,0.)
+        Yk= (0.61/(Xk-0.05)+1.3)
+        
+        
+        ax.plot(X, Y, '--', color = "red", lw = 1, label = "Kewley+01")
+        ax.plot(Xk, Yk, '-', color = "blue", lw = 1, label = "Kauffmann+03")
+        ax.set_xlim(-1.3, 1.)
+        ax.set_ylim(-1.5, 1)
 
         ##Adds to the plot
         ##Is 2by3 and this is the second image
@@ -227,15 +332,6 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         rotation = 270, labelpad = 25)
         #plt.xlim, plt.ylim
 
-
-        drpall = t.Table.read('/home/celeste/Documents/astro_research/drpall-v2_0_1.fits')
-        r = hdulist['SPX_ELLCOO'].data[0, ...]
-        obj = drpall[drpall['plateifu']==plateifu][0]
-        Re = obj['nsa_elpetro_th50_r']
-        #radius of each spec in 
-        r_Re = r/Re	
-
-        mass = obj['nsa_sersic_mass']
 
         """
         fig.text(0.12, 0.45, 'ID: ' + plateifu, fontsize=30)
@@ -275,60 +371,6 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 		        if (logOH12[a][b] < 7):
 			        logOH12[a][b] = None
 			        
-		        #Add bpt diagram
-
-        #check for pre existence of bpt plot:
-
-        bpt_file=Path("/home/celeste/Documents/astro_research/astro_images/bpt_diagrams/bpt_" + str(plateifu) + ".png")
-
-        if bpt_file.is_file():
-            a=fig.add_subplot(2, 3, 4)
-            image=img.imread("/home/celeste/Documents/astro_research/astro_images/bpt_diagrams/bpt_" + str(plateifu) + ".png")
-            lum_img = image[:,:,0]
-            imgplot=plt.imshow(image)
-        else:
-            print("Image not found. Plotting BPT manually...")
-            print(plateifu)
-            
-            zeros= False
-            for element in range(0, len(O_B)):
-                for item in range(0, len(O_B[element])):
-                    if O_B[element][item] >= 0:
-                        zeros = True
-            
-            ax = fig.add_subplot(2, 3, 4)
-            if zeros == True:
-                #fig = plt.figure()
-                #ax.set_xscale("log")
-                #ax.set_yscale("log")
-                minx=1000000
-                maxx=-1000000
-                miny=1000000
-                maxy=-1000000
-                ax.set_aspect(1)
-                ax.set_title("BPT Diagram for " + str(plate_number) + "-" + str(fiber_number))
-                for element in range(0, len(O_B)):
-                    for item in range(0, len(O_B[element])):
-                        if (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.47)+1.19) and (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.05)+1.3) and (math.log10(N_A[element][item])<0.0):
-                            #print("red dot")
-                            ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "red", marker = ".", ls = "None")
-                    else:
-                        ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "gray", marker = ".", ls = "None")
-
-            #Kewley
-            X = np.linspace(-1.5, 0.3)
-            Y = ((0.61/(X-0.47))+1.19)
-            
-            #Kauffmann
-            Xk = np.linspace(-1.5,0.)
-            Yk= (0.61/(Xk-0.05)+1.3)
-            
-            
-            ax.plot(X, Y, '--', color = "red", lw = 1, label = "Kewley+01")
-            ax.plot(Xk, Yk, '-', color = "blue", lw = 1, label = "Kauffmann+03")
-            ax.set_xlim(-1.2, 1.2)
-            ax.set_ylim(-1.5, 1)
-			        
 
         a = fig.add_subplot(2, 3, 6)
         imgplot = plt.scatter(r_Re.flatten(), logOH12.flatten()) #.flatten
@@ -344,8 +386,6 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
         #logOH12_flat = logOH12.flatten()
         
-        print(len(logOH12))
-        print(logOH12[30])
 
         print("--------")
 			
@@ -366,8 +406,9 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
             
         ##Saves the final image
-        plt.savefig('/home/celeste/Documents/astro_research/astro_images/testing_images/6_images_' + plateifu, bbox_inches = 'tight')
-        #plt.show()
+        print("Saving...")
+        #plt.savefig('/home/celeste/Documents/astro_research/astro_images/testing_images/6_images_' + plateifu, bbox_inches = 'tight')
+        plt.show()
         plt.close() 
         #quit()
 
