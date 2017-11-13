@@ -298,13 +298,19 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         print("Percent of spaxels that are star forming: ")
         print(percent_sfr)
         if percent_sfr <.60:
-            print("Not enough stars are Star forming.")
+            print("Not enough stars are Star forming.\n-----------------------")
             continue
-        else:
+        if axis<.8:
+            print("not a good incline\n---------------------")
+            continue
+        
+        if percent_sfr>=.6 and axis>=.8:
+            print("This one is goooood")
             file=open("star_forming_galaxies.txt", "a")
             file.write(plateifu + "\n")
             file.close()
             continue
+        
 
         #Kewley
         X = np.linspace(-1.5, 0.3)
@@ -407,9 +413,10 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             
         ##Saves the final image
         print("Saving...")
-        #plt.savefig('/home/celeste/Documents/astro_research/astro_images/testing_images/6_images_' + plateifu, bbox_inches = 'tight')
+        #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/test/testing_' + plateifu, bbox_inches = 'tight')
         plt.show()
         plt.close() 
+        print("--------------------------------")
         #quit()
 
 	    #plt.savefig('/home/celeste/Documents/astro_research/astro_images/six_galaxies/ha_flux_Z_' + plate_num[i] + '_' + fiber_num[i], bbox_inches = 'tight')
