@@ -8,6 +8,8 @@ import matplotlib.image as img
 from scipy.optimize import newton
 from pathlib import Path
 import math
+import matplotlib.cm as cm
+import matplotlib.mlab as mlab
 #from marvin.tools.cube import Cube
 '''
 import urllib.request
@@ -28,6 +30,7 @@ import requests
 
 #Check later: 
 #7977-9102
+
 
 #Good examples of boring, normal galaxies:
 #7990-6101
@@ -332,6 +335,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##Is 2by3 and this is the second image
         a = fig.add_subplot(2,3,2)
         imgplot = plt.imshow(Ha, cmap = "viridis", extent = shapemap)
+        cs=plt.gca().contour(Ha, 8, colors='k', extent=shapemap, origin='upper')
+        plt.gca().clabel(cs, inline=1, fontsize=5)
         plt.gca().invert_yaxis()
         plt.xlabel('Arcseconds')
         plt.ylabel('Arcseconds')
@@ -419,21 +424,52 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #exent = .5
         a = fig.add_subplot(2,3,5)
         imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap)
+        #write if statement 
+        """
+        good=np.where(logOH12!=None)
+        total=len(good[1])
+        if total >=100:
+            cs=plt.gca().contour(logOH12, 8, colors='k', extent = shapemap, origin="upper")
+        """
+        try:
+            plt.contour(logOH12, 20, colors='k')
+        except ValueError:
+            print("Value error! Skipping the log0H12 contour plotting....")
+        plt.gca().clabel(cs, inline=1, fontsize=5)
         plt.gca().invert_yaxis()
+        #plt.gca().invert_yaxis()
+
         plt.xlabel('Arcseconds')
         plt.ylabel('Arcseconds')
         cb = plt.colorbar(shrink = .7)
         cb.set_label('log(OH) + 12', rotation = 270, labelpad = 25)
         #plt.xlim, plt.ylim
+        
+        #monte Carlo
+        """
+        numpy.random.normal(loc=0, scale=1)
+        numpy.random.normal(loc=0, scale=1, size=(ha.shape)
+        want standard deviation, which is the error I want
+        numpy.std()
+        1000 different maps for each LINE in a galaxy
+        calculate metallicity for each thing
+        take standard deviation of metallicity values
+        """
 
 
             
         ##Saves the final image
         print("Saving...")
         plt.savefig('/home/celeste/Documents/astro_research/thesis_git/starforming_faceon_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
+        #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
         #plt.show()
-        plt.close() 
-        #asdfasd
+        plt.close()
+        """
+        leedle
+        if i >5:
+            leedle
+        """
+
         #quit()
 
 	    #plt.savefig('/home/celeste/Documents/astro_research/astro_images/six_galaxies/ha_flux_Z_' + plate_num[i] + '_' + fiber_num[i], bbox_inches = 'tight')

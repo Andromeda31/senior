@@ -310,6 +310,9 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             file.write(plateifu + "\n")
             file.close()
             continue
+            
+       #plt.imshow()
+       #plot.contour(ha, 20, colors='k')
         
 
         #Kewley
@@ -331,6 +334,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         a = fig.add_subplot(2,3,2)
         imgplot = plt.imshow(Ha, cmap = "viridis", extent = shapemap)
         plt.gca().invert_yaxis()
+        plt.contour(Ha, 20, colors ='k')
         plt.xlabel('Arcseconds')
         plt.ylabel('Arcseconds')
         cb = plt.colorbar(shrink = .7)
@@ -403,6 +407,12 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         a = fig.add_subplot(2,3,5)
         imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap)
         plt.gca().invert_yaxis()
+        print("sfr", sfr)
+        try:
+            plt.contour(logOH12, 20, colors='k')
+        except ValueError:
+            print("Value error! Skipping the log0H12 contour plotting....")
+
         plt.xlabel('Arcseconds')
         plt.ylabel('Arcseconds')
         cb = plt.colorbar(shrink = .7)
@@ -417,6 +427,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         plt.show()
         plt.close() 
         print("--------------------------------")
+        leeeedle
         #quit()
 
 	    #plt.savefig('/home/celeste/Documents/astro_research/astro_images/six_galaxies/ha_flux_Z_' + plate_num[i] + '_' + fiber_num[i], bbox_inches = 'tight')
