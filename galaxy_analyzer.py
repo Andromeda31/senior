@@ -173,7 +173,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
         ##Not sure what this is either
         ##This is the logOH12 issue here
-        print(*logR.shape)
+        #print(*logR.shape)
         for ii, jj in np.ndindex(*logR.shape):
 	        if logR.mask[ii,jj]:continue
 	        try:
@@ -182,7 +182,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 		        raise
 	        except:
 		        pass
-        print(len(logOH12))
+        #print(len(logOH12))
 		        
 	
         #print("average ", np.ma.median(np.log10(R)))
@@ -261,7 +261,11 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         mass = obj['nsa_sersic_mass']
         axis=obj['nsa_sersic_ba']
         #closest to 1, above .8
-        print("Axis ratio: ", axis) 
+        #print("Axis ratio: ", axis) 
+        print(math.log10(mass))
+        print("--------------")
+        continue
+        asdfadsf
 
             
         zeros= False
@@ -299,9 +303,9 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         else:
             continue
                 
-        print("total", total)
-        print("nsfr", nsfr)
-        print("sfr", sfr)
+        #print("total", total)
+        #print("nsfr", nsfr)
+        #print("sfr", sfr)
         try:
             percent_sfr=(sfr/total)
         except ZeroDivisionError:
@@ -398,6 +402,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 	        for b in range(len(logOH12[0])):
 		        if (logOH12[a][b] < 7):
 			        logOH12[a][b] = None
+        #print("Max R_E")
+        #print(np.max(r_Re.flatten()))
 			        
 
         a = fig.add_subplot(2, 3, 6)
@@ -405,6 +411,12 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         plt.xlabel("Effective Radii r/$R_e$")
         plt.ylabel('12+log(O/H)')
         plt.scatter(r_Re.flatten(), logOH12.flatten(), s=size)
+        idx = np.isfinite(r_Re.flatten()) & np.isfinite(logOH12.flatten())
+        m=np.polyfit(r_Re.flatten()[idx], logOH12.flatten()[idx], 2)
+        f = np.poly1d(m)
+        #m= np.polyfit(r_Re.flatten(), logOH12.flatten(), 2)
+        indarr=np.argsort(r_Re.flatten()[idx])
+        plt.plot(r_Re.flatten()[idx][indarr], f(r_Re.flatten()[idx][indarr]))
         #plt.ylim(8,9)
         #plt.xlim(0, 2.25)
         #plt.show()
@@ -465,6 +477,9 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
         #plt.show()
         plt.close()
+        print("Done with this one.")
+        print("--------------------------------------------------")
+        #leedle
         """
         leedle
         if i >5:
