@@ -67,7 +67,7 @@ def get_line_ew(maps,key,sn=3.):
 ##After hoefully downloading all the required fits files, this will read all the names
 #file_names = os.listdir("/home/celeste/Documents/astro_research/keepers")
 #file_names = os.listdir("/home/celeste/Documents/astro_research/fits_files")
-with open('/home/celeste/Documents/astro_research/thesis_git/star_forming_galaxies.txt') as f:
+with open('/home/celeste/Documents/astro_research/thesis_git/adam_galaxies.txt') as f:
     file_names=[]
     for line in f:
         file_names.append(line)
@@ -80,18 +80,15 @@ split = []
 ##Goes through all files in the folder
 for ii in range(0, len(file_names)):
     ##Removes all non alphanumeric characters and only leaves numbers and periods
-    file_names[ii] = re.sub("[^0-9]", "", file_names[ii])
+    file_names[ii] = re.sub("[^0-9-]", "", file_names[ii])
     #print(file_names[ii])
     #print(file_names[ii][4:])
     #print(file_names[ii][:4])
     ##splits the two numbers into a plate number and fiber number
-    split.insert(1, file_names[ii][4:])
-    split.insert(0, file_names[ii][:4])
-    plate_num.insert(ii, split[0])
-    fiber_num.insert(ii, split[1])
-    ##gets rid of the old split so the new one can be inserted at the 0 and 1 position
-    del split[1]
-    del split[0]
+    one, two = (str(file_names[ii]).split('-'))
+    ##splits the two numbers into a plate number and fiber number
+    plate_num.insert(ii, one)
+    fiber_num.insert(ii, two)
     
 #print(plate_num[0] + "-" + fiber_num[0])
 #print(file_names[0])
@@ -104,7 +101,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         print("Index: " + str(i))
         ##some black magic
         #hdulist = fits.open('/home/celeste/Documents/astro_research/keepers/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
-        hdulist = fits.open('/home/celeste/Documents/astro_research/fits_files/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
+        hdulist = fits.open('/home/celeste/Documents/astro_research/downloaded_data/MPL-6/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
         
         #logcube = fits.open('/home/celeste/Documents/astro_research/logcube_files/manga-10001-12702-LOGCUBE.fits')
 
@@ -126,7 +123,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
         ##Imports the thingy we need to get the images of the galaxy without having to download directly all the pictures. This also bypasses the password needed
         import requests
-        r = requests.get('https://data.sdss.org/sas/mangawork/manga/spectro/redux/v2_0_1/' + str(plate_number) + '/stack/images/' + str(fiber_number) + '.png', auth=('sdss', '2.5-meters'))
+        r = requests.get('https://data.sdss.org/sas/mangawork/manga/spectro/redux/v2_3_1/' + str(plate_number) + '/stack/images/' + str(fiber_number) + '.png', auth=('sdss', '2.5-meters'))
 
         ##Saves the image
         with open('/home/celeste/Documents/astro_research/astro_images/marvin_images/' + str(plate_id) + '.png', 'wb') as fd:
@@ -249,7 +246,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         """
         
         
-        drpall = t.Table.read('/home/celeste/Documents/astro_research/drpall-v2_0_1.fits')
+        drpall = t.Table.read('/home/celeste/Documents/astro_research/drpall-v2_3_1.fits')
         r = hdulist['SPX_ELLCOO'].data[0, ...]
         obj = drpall[drpall['plateifu']==plateifu][0]
         #nsa_sersic_ba for axis ratio
@@ -286,11 +283,11 @@ for i in range(0, len(plate_num)): ##len(plate_num)
                 for item in range(0, len(O_B[element])):
                     if (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.47)+1.19) and (math.log10(O_B[element][item])<0.61/(math.log10(N_A[element][item])-0.05)+1.3) and (math.log10(N_A[element][item])<0.0):
                         #print("red dot")
-                        ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "red", marker = ".", ls = "None")
+                        #ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "red", marker = ".", ls = "None")
                         sfr+=1
                         total+=1
                     else:
-                        ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "gray", marker = ".", ls = "None")
+                        #ax.plot(math.log10(N_A[element][item]), math.log10(O_B[element][item]), color = "gray", marker = ".", ls = "None")
                         logOH12[element][item]=None
                         Ha[element][item]=None
                         if math.isnan(math.log10(N_A[element][item])) != True:
@@ -298,6 +295,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
                             total+=1
         else:
             continue
+            
+        percent_sfr=0
                 
         print("total", total)
         print("nsfr", nsfr)
@@ -308,14 +307,18 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             percent_sfr=0
         print("Percent of spaxels that are star forming: ")
         print(percent_sfr)
-        if percent_sfr <.60:
-            print("Not enough stars are Star forming.")
-            print("THIS GALAXY SHOULD NOT BE IN HERE!!!")
-            #continue
-            #file=open("star_forming_galaxies.txt", "a")
-            #file.write(plateifu + "\n")
-            #file.close()
-            #continue
+        if percent_sfr >.60:
+            #print("Not enough stars are Star forming.")
+            #print("THIS GALAXY SHOULD NOT BE IN HERE!!!")
+            file=open("double_check_galaxies.txt", "a")
+            file.write(plateifu + "\n")
+            file.close()
+            print("-----------------------------------")
+            continue
+        else:
+            continue
+        
+        print("Should not have gotten this far")
 
         #Kewley
         X = np.linspace(-1.5, 0.3)
