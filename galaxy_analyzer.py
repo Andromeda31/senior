@@ -284,9 +284,9 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         for l in range(len(Ha)):
 	        for m in range(len(Ha[0])):
 		        if (Ha[l][m] > 150):
-			        Ha[l][m] = None
+			        Ha[l][m] = np.nan
 		        if (Ha[l][m] < 0):
-		            Ha[l][m] = None
+		            Ha[l][m] = np.nan
 	    
 		
         ##Finds the standard deviation and mean for future use	
@@ -297,7 +297,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         for j in range(len(Ha)):
 	        for k in range(len(Ha[0])):
 		        if (Ha[j][k] > std_dev*20+mean):
-			        Ha[j][k] = None
+			        Ha[j][k] = np.nan
 		
 
         ##Creates a shape that is the same size as the h-alpha array	
@@ -467,8 +467,10 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ax.set_xlim(-1.3, 1.)
         ax.set_ylim(-1.5, 1)
         
-        scatter_if(np.log10(NII/H_alpha), np.log10(OIII/H_beta), is_starforming == 1, c='r', marker = ".", s = 65, edgecolors = "black")
-        scatter_if(np.log10(NII/H_alpha),np.log10(OIII/H_beta),is_starforming == 0,c='gray', marker = ".", s = 65, edgecolors = "black")
+        scatter_if(np.log10(NII/H_alpha), np.log10(OIII/H_beta), is_starforming == 1, c=r_Re, marker = ".", s = 65, edgecolors = "red")
+        scatter_if(np.log10(NII/H_alpha),np.log10(OIII/H_beta),is_starforming == 0,c=r_Re, marker = ".", s = 65, edgecolors = "black")
+        
+        Ha[is_starforming==0]=np.nan
                 
         #print("total", total)
         #print("nsfr", nsfr)
@@ -506,8 +508,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         plt.xlabel('Arcseconds')
         plt.ylabel('Arcseconds')
         cb = plt.colorbar(shrink = .7)
-        cb.set_label('H-alpha flux [$10^{17} {erg/s/cm^2/pix}$]',
-        rotation = 270, labelpad = 25)
+        #cb.set_label('F(H$\alpha$)', rotation = 270, labelpad = 25)
+        cb.set_label('H-alpha flux [$10^{17} {erg/s/cm^2/pix}$]', rotation = 270, labelpad = 25)
         #plt.xlim, plt.ylim
 
 
@@ -528,6 +530,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         imgplot = plt.scatter(r_Re.flatten()[~mask], Ha.flatten()[~mask], s=20, edgecolors="black")
         #imgplot = plt.scatter(r_Re.flatten(), Ha.flatten(), s=size)
         plt.xlabel("Effective Radii r/$R_e$")
+        #plt.ylabel("F{H$\alpha}")
         plt.ylabel('H-alpha flux [$10^{17} {erg/s/cm^2/pix}$]')
         ##Finds the maximum and puts it in the plot
         #r_max = np.amax(r_Re.flatten()[~mask])
@@ -571,6 +574,9 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 			        logOH12[a][c] = None
         #print("Max R_E")
         #print(np.max(r_Re.flatten()))
+        
+        minimum = np.nanpercentile(logOH12, 5)
+        maximum = np.nanpercentile(logOH12, 95)
 			        
 
         a = fig.add_subplot(2, 3, 6)
@@ -584,7 +590,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         plt.plot(r_Re.flatten()[idx][indarr], yfit, color = "red", zorder = 3)
         plt.scatter(r_Re.flatten(), logOH12.flatten(), s=10, edgecolors = "black", color = "gray", zorder = 1)
         
-        plt.errorbar(r_Re.ravel(), logOH12.ravel(), yerr=logOH12error.ravel(), fmt=None, errorevery=50, capsize = 15, color = "green", zorder = 2)
+        plt.errorbar(r_Re.ravel(), logOH12.ravel(), yerr=logOH12error.ravel(), fmt=None, errorevery = 45, capsize = 15, color = "green", zorder = 2)
         #imgplot = plt.scatter(r_Re.flatten(), logOH12.flatten(), s=41, color = "red")
         
         #m=np.polyfit(r_Re.flatten()[idx], logOH12.flatten()[idx], 1)
@@ -610,7 +616,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #sky coordinates relative to center
         #exent = .5
         a = fig.add_subplot(2,3,5)
-        imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap)
+        imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap, vmin = minimum, vmax = maximum)
         #write if statement 
         """
         good=np.where(logOH12!=None)
@@ -630,7 +636,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         plt.xlabel('Arcseconds')
         plt.ylabel('Arcseconds')
         cb = plt.colorbar(shrink = .7)
-        cb.set_label('log(OH) + 12', rotation = 270, labelpad = 25)
+        cb.set_label('12+log(O/H)', rotation = 270, labelpad = 25)
         #plt.xlim, plt.ylim
         
         #monte Carlo
