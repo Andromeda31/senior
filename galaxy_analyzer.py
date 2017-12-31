@@ -351,11 +351,11 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #mass = float(mass_data[i])
         mass = math.log10(obj['nsa_sersic_mass'])-.49
         #print("mass from Adam", float(mass))
-        print("mass from data", mass)
+        #print("mass from data", mass)
         axis=obj['nsa_sersic_ba']
         #closest to 1, above .8
-        print("Axis ratio: ", axis) 
-        print("Mass is " + str(mass))
+        #print("Axis ratio: ", axis) 
+        #print("Mass is " + str(mass))
         
         if mass > 10.75:
             m = -0.06576751761269369
@@ -382,8 +382,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             m = 0.011644012238230033
             b = 8.359909467340257
         
-        print("Slope: ", m)
-        print("intercept: ", b)
+        #print("Slope: ", m)
+        #print("intercept: ", b)
 
             
         zeros= False
@@ -471,6 +471,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         scatter_if(np.log10(NII/H_alpha),np.log10(OIII/H_beta),is_starforming == 0,c=r_Re, marker = ".", s = 65, edgecolors = "black")
         
         Ha[is_starforming==0]=np.nan
+        logOH12[is_starforming==0]=np.nan
                 
         #print("total", total)
         #print("nsfr", nsfr)
@@ -608,7 +609,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #logOH12_flat = logOH12.flatten()
         
 
-        print("--------")
+        #print("--------")
 			
         matplotlib.rcParams.update({'font.size': 20})
         #Second image we want?
