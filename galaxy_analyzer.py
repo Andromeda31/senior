@@ -349,7 +349,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
         
         #mass = float(mass_data[i])
-        mass = math.log10(obj['nsa_sersic_mass'])-.49
+        mass = math.log10(obj['nsa_sersic_mass'])+.49
         #print("mass from Adam", float(mass))
         #print("mass from data", mass)
         axis=obj['nsa_sersic_ba']
