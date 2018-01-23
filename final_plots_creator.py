@@ -150,8 +150,8 @@ for ii in range(0, len(file_names)):
 
     ##Main loop over all the plates
     
-plate_num=['8137']
-fiber_num = ['12704']
+#plate_num=['8137']
+#fiber_num = ['12704']
 
 for i in range(0, len(plate_num)): ##len(plate_num)
 ##for j in range(0, len(fiber_num)):
@@ -187,14 +187,15 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         n2_err = errs[19,:,:]
         NII = fluxes[19,:,:]
         
+        
 
 
         velocity = hdulist['EMLINE_GVEL'].data[18,...]
+        velocity_err = (hdulist['EMLINE_GVEL_IVAR'].data[18,...])**-0.5
+        print(velocity_err)
         
         ew_cut = hdulist['EMLINE_GEW'].data[18,...]
         
-        badpix = (ew_cut < 3)
-        Ha[badpix]=np.nan
         #print(hdulist['PRIMARY'].header)
 
         #quit()
@@ -434,8 +435,17 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ax.set_xlim(-1.3, 1.)
         ax.set_ylim(-1.5, 1)
         
-        scatter_if(np.log10(NII/H_alpha), np.log10(OIII/H_beta), is_starforming == 1, c=r_Re, marker = ".", s = 65, edgecolors = "red")
-        scatter_if(np.log10(NII/H_alpha),np.log10(OIII/H_beta),is_starforming == 0,c=r_Re, marker = ".", s = 65, edgecolors = "black")
+        bpt_n2ha = np.log10(NII/H_alpha)
+        bpt_o3hb = np.log10(OIII/H_beta)
+        
+        badpix = ((Ha/Ha_err) < 3) | ((OIII/o3_err) < 3) | ((H_beta/Hb_err) < 3) | ((NII/n2_err) < 3)
+        bpt_n2ha[badpix]=np.nan
+        bpt_o3hb[badpix]=np.nan
+        
+        print(badpix)
+        
+        scatter_if(bpt_n2ha, bpt_o3hb, is_starforming == 1, c=r_Re, marker = ".", s = 65, edgecolors = "red")
+        scatter_if(bpt_n2ha, bpt_o3hb,is_starforming == 0,c=r_Re, marker = ".", s = 65, edgecolors = "black")
         
         Ha[is_starforming==0]=np.nan
         logOH12[is_starforming==0]=np.nan
@@ -470,10 +480,11 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##Is 2by3 and this is the second image
         a = fig.add_subplot(2,3,2)
         
-        badpix = ((Ha/Ha_err) < 3) | (ew_cut < 3)
-        Ha[badpix]=np.nan
-        imgplot = plt.imshow(Ha, cmap = "viridis", extent = shapemap)
-        cs=plt.gca().contour(Ha, 8, colors='k', extent=shapemap, origin='upper')
+        badpix = ((Ha/Ha_err) < 3)
+        Ha_2d = Ha
+        Ha_2d[badpix]=np.nan
+        imgplot = plt.imshow(Ha_2d, cmap = "viridis", extent = shapemap)
+        cs=plt.gca().contour(Ha_2d, 8, colors='k', extent=shapemap, origin='upper')
         plt.gca().clabel(cs, inline=1, fontsize=5)
         plt.gca().invert_yaxis()
         plt.xlabel('Arcseconds')
@@ -483,6 +494,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         cb.set_label('H-alpha flux [$10^{17} {erg/s/cm^2/pix}$]', rotation = 270, labelpad = 25)
         #plt.xlim, plt.ylim
 
+        velocity[np.isinf(velocity)==True]=np.nan
+        velocity_err[np.isinf(velocity_err)==True]=np.nan
 
         size=50
         ##Makes a mask
@@ -490,10 +503,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##Adds another subplot
         a = fig.add_subplot(2,3,3)
         ##Makes  a scatter plot of the data
-        badpix_vel = ((Ha/Ha_err) < 3)
+        badpix_vel = ((velocity_err) > 25)
         velocity[badpix_vel]=np.nan
-        
-        velocity[np.isinf(velocity)==True]=np.nan
         
         vel_min = np.nanpercentile(velocity, 5)
         vel_max = np.nanpercentile(velocity, 95)
@@ -588,12 +599,12 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         minimum = np.nanpercentile(logOH12, 5)
         maximum = np.nanpercentile(logOH12, 95)
         
-        badpix = (logOH12error > max_err) | ((Ha/Ha_err) < 3) | ((OIII/o3_err) < 3) | ((H_beta/Hb_err) < 3) | ((NII/n2_err) < 3)
+        badpix = (logOH12error > max_err) | ((Ha/Ha_err) < 3) | ((OIII/o3_err) < 3) | ((H_beta/Hb_err) < 3) | ((NII/n2_err) < 3) |  (ew_cut < 3)
         logOH12[badpix]=np.nan
         
         print(badpix)
-        
-        Ha[badpix]=np.nan
+        Ha_contour = Ha
+        Ha_contour[badpix]=np.nan
         
         a = fig.add_subplot(2,3,5)
         imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap, vmin = minimum, vmax = maximum)
@@ -605,7 +616,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             cs=plt.gca().contour(logOH12, 8, colors='k', extent = shapemap, origin="upper")
         """
         try:
-            cs=plt.gca().contour(Ha, 8, colors='k', extent=shapemap, origin='upper')
+            cs=plt.gca().contour(Ha_contour, 8, colors='k', extent=shapemap, origin='upper')
             #plt.contour(logOH12, 20, colors='k')
         except ValueError:
             print("Value error! Skipping the log0H12 contour plotting....")
