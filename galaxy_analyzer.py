@@ -149,6 +149,10 @@ for ii in range(0, len(file_names)):
 
 
     ##Main loop over all the plates
+    
+plate_num=['8137']
+fiber_num = ['12704']
+
 for i in range(0, len(plate_num)): ##len(plate_num)
 ##for j in range(0, len(fiber_num)):
         print(plate_num[i] + '-' + fiber_num[i])
@@ -183,6 +187,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         n2_err = errs[19,:,:]
         NII = fluxes[19,:,:]
 
+        velocity = hdulist['EMLINE_GVEL'].data[18,...]
         #print(hdulist['PRIMARY'].header)
 
         #quit()
@@ -347,11 +352,11 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #radius of each spec in 
         r_Re = r/Re	
 
-        
-        #mass = float(mass_data[i])
-        mass = math.log10(obj['nsa_sersic_mass'])+.49
-        #print("mass from Adam", float(mass))
-        #print("mass from data", mass)
+        print(plateifu)
+        mass_adam = float(mass_data[i])
+        mass = math.log10(obj['nsa_sersic_mass'])+np.log10(.49)
+        print("mass from Adam", float(mass_adam))
+        print("mass from data", mass)
         axis=obj['nsa_sersic_ba']
         #closest to 1, above .8
         #print("Axis ratio: ", axis) 
@@ -575,9 +580,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 			        logOH12[a][c] = None
         #print("Max R_E")
         #print(np.max(r_Re.flatten()))
-        
-        minimum = np.nanpercentile(logOH12, 5)
-        maximum = np.nanpercentile(logOH12, 95)
+       
 			        
 
         a = fig.add_subplot(2, 3, 6)
@@ -589,9 +592,27 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         
         yfit = [b + m * xi for xi in r_Re.flatten()[idx][indarr]]
         plt.plot(r_Re.flatten()[idx][indarr], yfit, color = "red", zorder = 3)
-        plt.scatter(r_Re.flatten(), logOH12.flatten(), s=10, edgecolors = "black", color = "gray", zorder = 1)
         
-        plt.errorbar(r_Re.ravel(), logOH12.ravel(), yerr=logOH12error.ravel(), fmt=None, errorevery = 45, capsize = 15, color = "green", zorder = 2)
+        #plt.scatter(r_Re.flatten(), logOH12.flatten(), s=10, edgecolors = "black", color = "gray", zorder = 1)
+        
+        """
+        H_alpha = fluxes[18,:,:]
+        Ha = H_alpha
+        Ha_err = errs[18,:,:]
+        OIII = fluxes[13,:,:]
+        o3_err = errs[13,:,:]
+        H_beta = fluxes[11,:,:]
+        Hb_err = errs[11,:,:]
+        n2_err = errs[19,:,:]
+        NII = fluxes[19,:,:]
+        """
+                
+        cond_err = logOH12error.ravel()<np.nanpercentile(logOH12error.ravel(), 95)
+        max_err = np.nanpercentile(logOH12error.ravel(), 95)
+        condition = (logOH12error.flatten() < max_err) & ((Ha/Ha_err).flatten() > 3) & ((OIII/o3_err).flatten() >3) & ((H_beta/Hb_err).flatten() > 3) & ((NII/n2_err).flatten() >3)
+        scatter_if(r_Re.flatten(), logOH12.flatten(), condition, s= 10, edgecolors = "black", color = "gray", zorder = 1)
+
+        plt.errorbar(r_Re.ravel()[condition], logOH12.ravel()[condition], yerr=logOH12error.ravel()[condition], fmt=None, errorevery = 45, capsize = 15, color = "green", zorder = 2)
         #imgplot = plt.scatter(r_Re.flatten(), logOH12.flatten(), s=41, color = "red")
         
         #m=np.polyfit(r_Re.flatten()[idx], logOH12.flatten()[idx], 1)
@@ -602,6 +623,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #plt.ylim(8,9)
         #plt.xlim(0, 2.25)
         #plt.show()
+        
 
         shape = (logOH12.shape[1])
         shapemap = [-.5*shape, .5*shape, -.5*shape, .5*shape]
@@ -616,6 +638,16 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #plt.plot(hd2[0], Ha[7])
         #sky coordinates relative to center
         #exent = .5
+        logOH12[np.isinf(logOH12)==True]=np.nan
+        
+        minimum = np.nanpercentile(logOH12, 5)
+        maximum = np.nanpercentile(logOH12, 95)
+        
+        badpix = (logOH12error > max_err) | ((Ha/Ha_err) < 3) | ((OIII/o3_err) < 3) | ((H_beta/Hb_err) < 3) | ((NII/n2_err) < 3)
+        logOH12[badpix]=np.nan
+        
+        print(badpix)
+        
         a = fig.add_subplot(2,3,5)
         imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap, vmin = minimum, vmax = maximum)
         #write if statement 
@@ -650,16 +682,30 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         calculate metallicity for each thing
         take standard deviation of metallicity values
         """
+        plt.close()
+        
+        badpix_vel = ((Ha/Ha_err) < 3)
+        velocity[badpix_vel]=np.nan
+        
+        velocity[np.isinf(velocity)==True]=np.nan
+        
+        vel_min = np.nanpercentile(velocity, 5)
+        vel_max = np.nanpercentile(velocity, 95)
+        
+        plt.imshow(velocity, origin = "lower", cmap = "RdYlBu_r", extent = shapemap, vmin = vel_min, vmax = vel_max)
+        cb = plt.colorbar(shrink = .7)
+        cb.set_label('km/s', rotation = 270, labelpad = 25)
+        plt.show()
 
 
             
         ##Saves the final image
         print("Saving...")
         
-        plt.savefig('/home/celeste/Documents/astro_research/thesis_git/adam_faceon_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
+        #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/adam_faceon_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
         #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/gaalxy_faceon_average_line_' + plateifu +".png", bbox_inches = 'tight')
-        #plt.show()
-        plt.close()
+        plt.show()
+        #plt.close()
         print("Done with this one.")
         print("--------------------------------------------------")
         #leedle
