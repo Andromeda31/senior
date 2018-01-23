@@ -637,7 +637,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##Saves the final image
         print("Saving...")
         
-        #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/adam_faceon_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
+        #plt.savefig('/home/celeste/Documents/astro_research/manga_images/adam_faceon_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
         #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/gaalxy_faceon_average_line_' + plateifu +".png", bbox_inches = 'tight')
         plt.show()
         #plt.close()
