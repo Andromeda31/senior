@@ -10,6 +10,11 @@ from pathlib import Path
 import math
 import matplotlib.cm as cm
 import matplotlib.mlab as mlab
+from matplotlib.patches import Ellipse
+import numpy.random as rnd
+from matplotlib import patches
+
+
 #from marvin.tools.cube import Cube
 '''
 import urllib.request
@@ -22,6 +27,13 @@ import csv
 import os
 
 import requests
+
+import numpy as np
+from scipy.stats import chi2
+#import pylab as mp
+
+
+#from https://casper.berkeley.edu/astrobaki/index.php/Plotting_Ellipses_in_Python
 
 ##stop():
 
@@ -317,7 +329,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
         ##Creates a shape that is the same size as the h-alpha array	
         shape = (Ha.shape[1])
-        shapemap = [-.5*shape, .5*shape, -.5*shape, .5*shape]
+        shapemap = [-.25*shape, .25*shape, -.25*shape, .25*shape]
 
         ##Changes the font size
         matplotlib.rcParams.update({'font.size': 20})
@@ -359,12 +371,14 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #nsa_sersic_ba for axis ratio
         #axis=drpall['nsa_sersic_ba'].data[0, ...]
         Re = obj['nsa_elpetro_th50_r']
+        pa = obj['nsa_elpetro_phi']
+        ba = obj['nsa_elpetro_ba']
         #radius of each spec in 
         r_Re = r/Re	
 
         print(plateifu)
         mass_adam = float(mass_data[i])
-        mass = math.log10(obj['nsa_sersic_mass'])+np.log10(.49)
+        mass = math.log10(obj['nsa_sersic_mass'])-np.log10(.49)
         print("mass from Adam", float(mass_adam))
         print("mass from data", mass)
         axis=obj['nsa_sersic_ba']
@@ -444,8 +458,10 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         
         print(badpix)
         
-        scatter_if(bpt_n2ha, bpt_o3hb, is_starforming == 1, c=r_Re, marker = ".", s = 65, edgecolors = "red")
-        scatter_if(bpt_n2ha, bpt_o3hb,is_starforming == 0,c=r_Re, marker = ".", s = 65, edgecolors = "black")
+        scatter_if(bpt_n2ha, bpt_o3hb, is_starforming == 1, c=r_Re, marker = ".", s = 65)
+        scatter_if(bpt_n2ha, bpt_o3hb,is_starforming == 0,c=r_Re, marker = ".", s = 65)
+        
+        cb.set_label('R/R_e', rotation = 270, labelpad = 25)
         
         Ha[is_starforming==0]=np.nan
         logOH12[is_starforming==0]=np.nan
@@ -453,25 +469,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #print("total", total)
         #print("nsfr", nsfr)
         #print("sfr", sfr)
-        
-        '''
-        
-        try:
-            percent_sfr=(sfr/total)
-        except ZeroDivisionError:
-            percent_sfr=0
-        print("Percent of spaxels that are star forming: ")
-        print(percent_sfr)
-        if percent_sfr <.60:
-            print("Not enough stars are Star forming.")
-            print("THIS GALAXY SHOULD NOT BE IN HERE!!!")
-            #continue
-            #file=open("star_forming_galaxies.txt", "a")
-            #file.write(plateifu + "\n")
-            #file.close()
-            #continue
-            
-        '''
+
        
 
 
@@ -483,10 +481,17 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         badpix = ((Ha/Ha_err) < 3)
         Ha_2d = Ha
         Ha_2d[badpix]=np.nan
-        imgplot = plt.imshow(Ha_2d, cmap = "viridis", extent = shapemap)
-        cs=plt.gca().contour(Ha_2d, 8, colors='k', extent=shapemap, origin='upper')
-        plt.gca().clabel(cs, inline=1, fontsize=5)
+        imgplot = plt.imshow(Ha_2d, cmap = "viridis", extent = shapemap, zorder = 1)
+        #cs=plt.gca().contour(Ha_2d, 8, colors='k', extent=shapemap, origin='upper', zorder = 2)
+        #plt.gca().clabel(cs, inline=1, fontsize=5)
+        css = plt.gca().contour(r_Re,1,extent=shapemap, colors='r', origin = 'upper', zorder = 2, z = 1)
+        plt.gca().clabel(css, inline=1, fontsize=5)
         plt.gca().invert_yaxis()
+        
+        #ec = patches.Ellipse(xy=(0,0), width=Re*ba*2, height=Re*2, angle=pa, linewidth = 4, edgecolor='k',fill=False, zorder = 3)
+        
+        #a.add_patch(ec)
+        
         plt.xlabel('Arcseconds')
         plt.ylabel('Arcseconds')
         cb = plt.colorbar(shrink = .7)
@@ -509,7 +514,11 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         vel_min = np.nanpercentile(velocity, 5)
         vel_max = np.nanpercentile(velocity, 95)
         
+        
         imgplot = plt.imshow(velocity, origin = "lower", cmap = "RdYlBu_r", extent = shapemap, vmin = vel_min, vmax = vel_max)
+        
+        ax.set_facecolor('white')
+
         cb = plt.colorbar(shrink = .7)
         cb.set_label('km/s', rotation = 270, labelpad = 25)
         
@@ -607,7 +616,9 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         Ha_contour[badpix]=np.nan
         
         a = fig.add_subplot(2,3,5)
-        imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap, vmin = minimum, vmax = maximum)
+        imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap, vmin = minimum, vmax = maximum, zorder = 1)
+        
+            
         #write if statement 
         """
         good=np.where(logOH12!=None)
@@ -616,11 +627,17 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             cs=plt.gca().contour(logOH12, 8, colors='k', extent = shapemap, origin="upper")
         """
         try:
-            cs=plt.gca().contour(Ha_contour, 8, colors='k', extent=shapemap, origin='upper')
+            cs=plt.gca().contour(Ha_contour, 8, colors='k', extent=shapemap, origin='upper', zorder = 2)
             #plt.contour(logOH12, 20, colors='k')
         except ValueError:
             print("Value error! Skipping the log0H12 contour plotting....")
         #plt.gca().clabel(cs, inline=1, fontsize=5)
+        
+
+        ec = patches.Ellipse(xy=(0,0), width=Re*ba*2, height=Re*2, angle=pa, linewidth = 4, edgecolor='k',fill=False, zorder = 3)
+        
+        a.add_patch(ec)
+
         plt.gca().invert_yaxis()
         #plt.gca().invert_yaxis()
 
@@ -630,6 +647,27 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         cb.set_label('12+log(O/H)', rotation = 270, labelpad = 25)
         #plt.xlim, plt.ylim
         
+        """
+        
+        plt.close()
+        
+        fig = plt.figure(figsize=(30,18))
+        
+        a = fig.add_subplot(1, 1, 1)
+        imgplot = plt.imshow(r_Re, cmap = "viridis", extent = shapemap, zorder = 1)
+        cs=plt.gca().contour(r_Re, 8, colors='k', extent=shapemap, origin='upper', zorder = 2)
+        plt.gca().clabel(cs, inline=1, fontsize=5)
+
+        
+        ec = patches.Ellipse(xy=(0,0), width=Re*ba*2, height=Re*2, angle=pa+90, linewidth = 4, edgecolor='k',fill=False, zorder = 3)
+        
+        
+        a.add_patch(ec)
+        
+        plt.gca().invert_yaxis()
+        
+        plt.show()
+        """
      
        
 
