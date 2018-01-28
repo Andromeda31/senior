@@ -13,6 +13,10 @@ import matplotlib.mlab as mlab
 from matplotlib.patches import Ellipse
 import numpy.random as rnd
 from matplotlib import patches
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+plt.rcParams['axes.facecolor'] = 'white'
+
 
 
 #from marvin.tools.cube import Cube
@@ -186,6 +190,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##gets the hydrogen alpha and hydrogen beta data
         Ha = hdulist['EMLINE_GFLUX'].data[18,...]
         Hb = hdulist['EMLINE_GFLUX'].data[1,...]
+        snmap = hdulist['SPX_SNR'].data
         fluxes = hdulist['EMLINE_GFLUX'].data
         #errs = hdulist['EMLINE_GFLUX_ERR'].data
         errs=(hdulist['EMLINE_GFLUX_IVAR'].data)**-0.5
@@ -204,7 +209,6 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
         velocity = hdulist['EMLINE_GVEL'].data[18,...]
         velocity_err = (hdulist['EMLINE_GVEL_IVAR'].data[18,...])**-0.5
-        print(velocity_err)
         
         ew_cut = hdulist['EMLINE_GEW'].data[18,...]
         
@@ -334,7 +338,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##Changes the font size
         matplotlib.rcParams.update({'font.size': 20})
         #Second image we want?
-        fig = plt.figure(figsize=(30,18))
+        fig = plt.figure(figsize=(30,18), facecolor='white')
         #plt.plot(hd2[0], Ha[7])
         #sky coordinates relative to center
         #exent = .5
@@ -432,7 +436,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             nsfr=0
             
             ax.set_aspect(1)
-            ax.set_title("BPT Diagram for " + str(plate_number) + "-" + str(fiber_number))
+            ax.set_title("BPT Diagram")
 
         
         #Kewley
@@ -442,26 +446,40 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #Kauffmann
         Xk = np.linspace(-1.5,0.)
         Yk= (0.61/(Xk-0.05)+1.3)
+       
         
         
         ax.plot(X, Y, '--', color = "red", lw = 1, label = "Kewley+01")
         ax.plot(Xk, Yk, '-', color = "blue", lw = 1, label = "Kauffmann+03")
-        ax.set_xlim(-1.3, 1.)
-        ax.set_ylim(-1.5, 1)
+
         
         bpt_n2ha = np.log10(NII/H_alpha)
         bpt_o3hb = np.log10(OIII/H_beta)
         
         badpix = ((Ha/Ha_err) < 3) | ((OIII/o3_err) < 3) | ((H_beta/Hb_err) < 3) | ((NII/n2_err) < 3)
-        bpt_n2ha[badpix]=np.nan
-        bpt_o3hb[badpix]=np.nan
+        bpt_n2ha[badpix] = np.nan
+        bpt_o3hb[badpix] = np.nan
         
-        print(badpix)
+        xmin = np.nanmin(bpt_n2ha) - 0.1
+        xmax = np.nanmax(bpt_n2ha) + 0.1
+        ymin = np.nanmin(bpt_o3hb) - 0.1
+        ymax = np.nanmax(bpt_o3hb) + 0.1
         
-        scatter_if(bpt_n2ha, bpt_o3hb, is_starforming == 1, c=r_Re, marker = ".", s = 65)
-        scatter_if(bpt_n2ha, bpt_o3hb,is_starforming == 0,c=r_Re, marker = ".", s = 65)
         
+        
+        scatter_if(bpt_n2ha, bpt_o3hb, is_starforming == 1, c=r_Re, marker = ".", s = 65, alpha = 0.5, cmap = 'jet')
+        scatter_if(bpt_n2ha, bpt_o3hb,is_starforming == 0, c=r_Re, marker = ".", s = 65, alpha = 0.5, cmap = 'jet')
+        
+        ax.set_xlim(xmin, xmax)
+        ax.set_ylim(ymin, ymax)
+        
+        cb_max = math.ceil(np.amax(r_Re))
+        
+        cb = plt.colorbar(shrink = .7)
         cb.set_label('R/R_e', rotation = 270, labelpad = 25)
+        #plt.axes().set_aspect('equal')
+        plt.clim(0,cb_max)
+        plt.tight_layout()
         
         Ha[is_starforming==0]=np.nan
         logOH12[is_starforming==0]=np.nan
@@ -482,10 +500,13 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         Ha_2d = Ha
         Ha_2d[badpix]=np.nan
         imgplot = plt.imshow(Ha_2d, cmap = "viridis", extent = shapemap, zorder = 1)
-        #cs=plt.gca().contour(Ha_2d, 8, colors='k', extent=shapemap, origin='upper', zorder = 2)
-        #plt.gca().clabel(cs, inline=1, fontsize=5)
-        css = plt.gca().contour(r_Re,1,extent=shapemap, colors='r', origin = 'upper', zorder = 2, z = 1)
-        plt.gca().clabel(css, inline=1, fontsize=5)
+        plt.title("H-alpha Flux")
+        cs=plt.gca().contour(Ha_2d, 8, colors='k', extent=shapemap, origin='upper', zorder = 2)
+        plt.gca().clabel(cs, inline=1, fontsize=5)
+        css = plt.gca().contour(r_Re,[1],extent=shapemap, colors='r', origin = 'upper', zorder = 2, z = 1)
+
+
+        #plt.gca().clabel(css, inline=1)
         plt.gca().invert_yaxis()
         
         #ec = patches.Ellipse(xy=(0,0), width=Re*ba*2, height=Re*2, angle=pa, linewidth = 4, edgecolor='k',fill=False, zorder = 3)
@@ -498,13 +519,17 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #cb.set_label('F(H$\alpha$)', rotation = 270, labelpad = 25)
         cb.set_label('H-alpha flux [$10^{17} {erg/s/cm^2/pix}$]', rotation = 270, labelpad = 25)
         #plt.xlim, plt.ylim
+        
+        mask = hdulist['EMLINE_GVEL_MASK'].data[18,:,:]
 
         velocity[np.isinf(velocity)==True]=np.nan
+        #velocity[(np.isnan(snmap)==True)|(snmap==0)]=np.nan
+        velocity[mask != 0]=np.nan
         velocity_err[np.isinf(velocity_err)==True]=np.nan
 
         size=50
         ##Makes a mask
-        mask = (Ha==0).flatten()
+        #mask = (Ha==0).flatten()
         ##Adds another subplot
         a = fig.add_subplot(2,3,3)
         ##Makes  a scatter plot of the data
@@ -514,13 +539,15 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         vel_min = np.nanpercentile(velocity, 5)
         vel_max = np.nanpercentile(velocity, 95)
         
-        
+
         imgplot = plt.imshow(velocity, origin = "lower", cmap = "RdYlBu_r", extent = shapemap, vmin = vel_min, vmax = vel_max)
         
-        ax.set_facecolor('white')
+        plt.title("Gas Velocity")
+        
 
         cb = plt.colorbar(shrink = .7)
         cb.set_label('km/s', rotation = 270, labelpad = 25)
+        a.set_facecolor('white')
         
 
 
@@ -535,6 +562,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         lum_img = image[:,:,0]
         #plt.subplot(121)
         imgplot = plt.imshow(image)
+        plt.title("Galaxy "  + str(plate_number) + "-" + str(fiber_number))
         
 
         #print((~(logOH12.mask)).sum())
@@ -556,7 +584,9 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         indarr=np.argsort(r_Re.flatten()[idx])
         
         yfit = [b + m * xi for xi in r_Re.flatten()[idx][indarr]]
+        plt.tight_layout()
         plt.plot(r_Re.flatten()[idx][indarr], yfit, color = "red", zorder = 3)
+        
         
         #plt.scatter(r_Re.flatten(), logOH12.flatten(), s=10, edgecolors = "black", color = "gray", zorder = 1)
         
@@ -576,6 +606,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         max_err = np.nanpercentile(logOH12error.ravel(), 95)
         condition = (logOH12error.flatten() < max_err) & ((Ha/Ha_err).flatten() > 3) & ((OIII/o3_err).flatten() >3) & ((H_beta/Hb_err).flatten() > 3) & ((NII/n2_err).flatten() >3)
         scatter_if(r_Re.flatten(), logOH12.flatten(), condition, s= 10, edgecolors = "black", color = "gray", zorder = 1)
+        plt.title("Metallicity Gradient")
 
         plt.errorbar(r_Re.ravel()[condition], logOH12.ravel()[condition], yerr=logOH12error.ravel()[condition], fmt=None, errorevery = 45, capsize = 15, color = "green", zorder = 2)
         #imgplot = plt.scatter(r_Re.flatten(), logOH12.flatten(), s=41, color = "red")
@@ -611,12 +642,14 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         badpix = (logOH12error > max_err) | ((Ha/Ha_err) < 3) | ((OIII/o3_err) < 3) | ((H_beta/Hb_err) < 3) | ((NII/n2_err) < 3) |  (ew_cut < 3)
         logOH12[badpix]=np.nan
         
-        print(badpix)
+
         Ha_contour = Ha
         Ha_contour[badpix]=np.nan
         
         a = fig.add_subplot(2,3,5)
+        plt.tight_layout()
         imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap, vmin = minimum, vmax = maximum, zorder = 1)
+        plt.title("Metallicity Map")
         
             
         #write if statement 
@@ -631,12 +664,13 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             #plt.contour(logOH12, 20, colors='k')
         except ValueError:
             print("Value error! Skipping the log0H12 contour plotting....")
-        #plt.gca().clabel(cs, inline=1, fontsize=5)
+        plt.gca().clabel(cs, inline=1, fontsize=5)
         
 
-        ec = patches.Ellipse(xy=(0,0), width=Re*ba*2, height=Re*2, angle=pa, linewidth = 4, edgecolor='k',fill=False, zorder = 3)
-        
-        a.add_patch(ec)
+        css = plt.gca().contour(r_Re,[1],extent=shapemap, colors='red', origin = 'upper', zorder = 2, z = 1, edgecolors = "black")
+
+
+        #plt.gca().clabel(css)
 
         plt.gca().invert_yaxis()
         #plt.gca().invert_yaxis()
@@ -675,10 +709,10 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##Saves the final image
         print("Saving...")
         
-        #plt.savefig('/home/celeste/Documents/astro_research/manga_images/adam_faceon_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
+        plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
         #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/gaalxy_faceon_average_line_' + plateifu +".png", bbox_inches = 'tight')
-        plt.show()
-        #plt.close()
+        #plt.show()
+        plt.close()
         print("Done with this one.")
         print("--------------------------------------------------")
         #leedle
