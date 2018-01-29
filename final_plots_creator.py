@@ -13,6 +13,7 @@ import matplotlib.mlab as mlab
 from matplotlib.patches import Ellipse
 import numpy.random as rnd
 from matplotlib import patches
+import sys
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 plt.rcParams['axes.facecolor'] = 'white'
@@ -379,6 +380,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ba = obj['nsa_elpetro_ba']
         #radius of each spec in 
         r_Re = r/Re	
+        r_Re = hdulist['SPX_ELLCOO'].data[1, ...]
 
         print(plateifu)
         mass_adam = float(mass_data[i])
@@ -425,7 +427,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
                 if O_B[element][item] >= 0:
                     zeros = True
         
-        ax = fig.add_subplot(2, 3, 4)
+        ax_bpt = fig.add_subplot(2, 3, 4)
         if zeros == True:
             #fig = plt.figure()
             #ax.set_xscale("log")
@@ -435,8 +437,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             sfr=0
             nsfr=0
             
-            ax.set_aspect(1)
-            ax.set_title("BPT Diagram")
+            ax_bpt.set_aspect(1)
+            ax_bpt.set_title("BPT Diagram")
 
         
         #Kewley
@@ -448,9 +450,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         Yk= (0.61/(Xk-0.05)+1.3)
        
         
-        
-        ax.plot(X, Y, '--', color = "red", lw = 1, label = "Kewley+01")
-        ax.plot(Xk, Yk, '-', color = "blue", lw = 1, label = "Kauffmann+03")
+        ax_bpt.plot(X, Y, '--', color = "red", lw = 1, label = "Kewley+01")
+        ax_bpt.plot(Xk, Yk, '-', color = "blue", lw = 1, label = "Kauffmann+03")
 
         
         bpt_n2ha = np.log10(NII/H_alpha)
@@ -470,16 +471,22 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         scatter_if(bpt_n2ha, bpt_o3hb, is_starforming == 1, c=r_Re, marker = ".", s = 65, alpha = 0.5, cmap = 'jet')
         scatter_if(bpt_n2ha, bpt_o3hb,is_starforming == 0, c=r_Re, marker = ".", s = 65, alpha = 0.5, cmap = 'jet')
         
-        ax.set_xlim(xmin, xmax)
-        ax.set_ylim(ymin, ymax)
+        ax_bpt.set_xlim(xmin, xmax)
+        ax_bpt.set_ylim(ymin, ymax)
+        ax_bpt.set_aspect((xmax-xmin)/(ymax-ymin))
         
         cb_max = math.ceil(np.amax(r_Re))
+
         
         cb = plt.colorbar(shrink = .7)
-        cb.set_label('R/R_e', rotation = 270, labelpad = 25)
+        cb.set_label('r/$R_e$', rotation = 270, labelpad = 25)
         #plt.axes().set_aspect('equal')
         plt.clim(0,cb_max)
-        plt.tight_layout()
+        try:
+            plt.tight_layout()
+        except ValueError:
+            print("all NaN")
+            continue
         
         Ha[is_starforming==0]=np.nan
         logOH12[is_starforming==0]=np.nan
@@ -503,8 +510,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         plt.title("H-alpha Flux")
         cs=plt.gca().contour(Ha_2d, 8, colors='k', extent=shapemap, origin='upper', zorder = 2)
         plt.gca().clabel(cs, inline=1, fontsize=5)
-        css = plt.gca().contour(r_Re,[1],extent=shapemap, colors='r', origin = 'upper', zorder = 2, z = 1)
-
+        css = plt.gca().contour(r_Re*2,[1],extent=shapemap, colors='r', origin = 'upper', zorder = 2, z = 1)
 
         #plt.gca().clabel(css, inline=1)
         plt.gca().invert_yaxis()
@@ -584,7 +590,10 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         indarr=np.argsort(r_Re.flatten()[idx])
         
         yfit = [b + m * xi for xi in r_Re.flatten()[idx][indarr]]
-        plt.tight_layout()
+        try:
+            plt.tight_layout()
+        except ValueError:
+            print("all NaN")
         plt.plot(r_Re.flatten()[idx][indarr], yfit, color = "red", zorder = 3)
         
         
@@ -647,7 +656,10 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         Ha_contour[badpix]=np.nan
         
         a = fig.add_subplot(2,3,5)
-        plt.tight_layout()
+        try:
+            plt.tight_layout()
+        except ValueError:
+            print("all NaN")
         imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap, vmin = minimum, vmax = maximum, zorder = 1)
         plt.title("Metallicity Map")
         
@@ -667,7 +679,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         plt.gca().clabel(cs, inline=1, fontsize=5)
         
 
-        css = plt.gca().contour(r_Re,[1],extent=shapemap, colors='red', origin = 'upper', zorder = 2, z = 1, edgecolors = "black")
+        css = plt.gca().contour(r_Re*2,[1],extent=shapemap, colors='red', origin = 'upper', zorder = 2, z = 1, edgecolors = "black")
 
 
         #plt.gca().clabel(css)
@@ -709,10 +721,10 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##Saves the final image
         print("Saving...")
         
-        plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
+        #plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
         #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/gaalxy_faceon_average_line_' + plateifu +".png", bbox_inches = 'tight')
-        #plt.show()
-        plt.close()
+        plt.show()
+        #plt.close()
         print("Done with this one.")
         print("--------------------------------------------------")
         #leedle
