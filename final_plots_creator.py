@@ -14,6 +14,7 @@ from matplotlib.patches import Ellipse
 import numpy.random as rnd
 from matplotlib import patches
 import sys
+from scipy.optimize import curve_fit
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 plt.rcParams['axes.facecolor'] = 'white'
@@ -99,6 +100,20 @@ def is_sf_array(n2,ha,o3,hb):
     issf[badpix]=np.nan
     issf[goodpix]=1
     return issf
+    
+def n2s2_dopita16_w_errs(ha,n22,s21,s22,ha_err,n22_err,s21_err,s22_err):
+    '''
+    N2S2 metallicity diagnostic from Dopita et al. (2016)
+    includes a calculation of the errors
+    '''
+    y=np.log10(n22/(s21+s22))+0.264*np.log10(n22/ha)
+    s2=s21+s22
+    s2_err=np.sqrt(s21_err**2 + s22_err**2)
+    met_err=(1.0/np.log(10)) * np.sqrt( (1+0.264**2)*(n22_err/n22)**2 + (s2_err/s2)**2 + (ha_err/ha)**2 )
+    met=8.77+y
+    return met, met_err
+
+
 
 ##Takes an input array and returns the values if a condition is met. Basically a glorified call to numpy.where
 
@@ -134,10 +149,14 @@ def scatter_if(x_in,y_in,condition=None,**kwargs):
 ##After hoefully downloading all the required fits files, this will read all the names
 #file_names = os.listdir("/home/celeste/Documents/astro_research/keepers")
 #file_names = os.listdir("/home/celeste/Documents/astro_research/fits_files")
-with open('/home/celeste/Documents/astro_research/thesis_git/adam_galaxies.txt') as f:
+filename = '/home/celeste/Documents/astro_research/thesis_git/Good_Galaxies_SPX_2_N2S2.txt'
+file_names = np.genfromtxt(filename, usecols=(0), skip_header=1, dtype=str, delimiter=',')
+"""
+with open('/home/celeste/Documents/astro_research/thesis_git/Good_Galaxies_SPX_2_N2S2.txt') as f:
     file_names=[]
     for line in f:
         file_names.append(line)
+"""
 with open('/home/celeste/Documents/astro_research/thesis_git/mass_data.txt') as f:
     mass_data=[]
     for line in f:
@@ -167,8 +186,8 @@ for ii in range(0, len(file_names)):
 
     ##Main loop over all the plates
     
-#plate_num=['8137']
-#fiber_num = ['12704']
+#plate_num=['8147']
+#fiber_num = ['3703']
 
 for i in range(0, len(plate_num)): ##len(plate_num)
 ##for j in range(0, len(fiber_num)):
@@ -204,6 +223,10 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         Hb_err = errs[11,:,:]
         n2_err = errs[19,:,:]
         NII = fluxes[19,:,:]
+        s21 = fluxes[20,:,:]
+        s22 = fluxes[21,:,:]
+        s21_err = errs[20,:,:]
+        s22_err = errs[21,:,:]
         
         
 
@@ -275,7 +298,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #logOH12 = np.ma.array(np.zeros(logR.shape),mask=logR.mask)
         
         logOH12 = 8.73-0.32*np.log10(R)
-        logOH12, logOH12error = pp04_o3n2_w_errs(NII, H_alpha, OIII, H_beta, n2_err, Ha_err, o3_err, Hb_err)
+        logOH12, logOH12error = n2s2_dopita16_w_errs(H_alpha, NII, s21, s22, Ha_err, n2_err, s21_err, s22_err)
         is_starforming = is_sf_array(NII,H_alpha,OIII, H_beta)
         
         #plt.errorbar(rad.ravel(), met.ravel(), yerr=logOH12error.ravel(), fmt='o', errorevery=10)
@@ -380,12 +403,11 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ba = obj['nsa_elpetro_ba']
         #radius of each spec in 
         r_Re = r/Re	
-        r_Re = hdulist['SPX_ELLCOO'].data[1, ...]
+        r_Re = hdulist['SPX_ELLCOO'].data[1]
 
         print(plateifu)
-        mass_adam = float(mass_data[i])
-        mass = math.log10(obj['nsa_sersic_mass'])-np.log10(.49)
-        print("mass from Adam", float(mass_adam))
+        mass = math.log10(obj['nsa_elpetro_mass'])-np.log10(.49)
+        #petrosian
         print("mass from data", mass)
         axis=obj['nsa_sersic_ba']
         #closest to 1, above .8
@@ -429,9 +451,6 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         
         ax_bpt = fig.add_subplot(2, 3, 4)
         if zeros == True:
-            #fig = plt.figure()
-            #ax.set_xscale("log")
-            #ax.set_yscale("log")
             
             total=0
             sfr=0
@@ -452,40 +471,53 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         
         ax_bpt.plot(X, Y, '--', color = "red", lw = 1, label = "Kewley+01")
         ax_bpt.plot(Xk, Yk, '-', color = "blue", lw = 1, label = "Kauffmann+03")
+        
+        x=np.linspace(-0.133638005,0.75,100)
+        y=2.1445*x+0.465
+        ax_bpt.plot(x, y, '--', color = "green", lw = 1)
 
         
         bpt_n2ha = np.log10(NII/H_alpha)
         bpt_o3hb = np.log10(OIII/H_beta)
         
-        badpix = ((Ha/Ha_err) < 3) | ((OIII/o3_err) < 3) | ((H_beta/Hb_err) < 3) | ((NII/n2_err) < 3)
+        badpix = ((Ha/Ha_err) < 3) | ((NII/n2_err) < 3) | ((OIII/o3_err) < 3) | ((NII/n2_err) < 3)
         bpt_n2ha[badpix] = np.nan
         bpt_o3hb[badpix] = np.nan
         
+        bpt_o3hb95 = np.nanpercentile(bpt_o3hb, 98)
+        bpt_o3hb5 = np.nanpercentile(bpt_o3hb, 2)
+        
         xmin = np.nanmin(bpt_n2ha) - 0.1
         xmax = np.nanmax(bpt_n2ha) + 0.1
+        #ymin = bpt_o3hb5 - 0.1
+        #ymax = bpt_o3hb95 + 0.1
         ymin = np.nanmin(bpt_o3hb) - 0.1
         ymax = np.nanmax(bpt_o3hb) + 0.1
         
+        #bad = is_starforming != 1
+        #r_Rebpt = r_Re[bad]
         
-        
-        scatter_if(bpt_n2ha, bpt_o3hb, is_starforming == 1, c=r_Re, marker = ".", s = 65, alpha = 0.5, cmap = 'jet')
-        scatter_if(bpt_n2ha, bpt_o3hb,is_starforming == 0, c=r_Re, marker = ".", s = 65, alpha = 0.5, cmap = 'jet')
+        scatter_if(bpt_n2ha, bpt_o3hb, (is_starforming == 1) | (is_starforming == 0), c=r_Re, marker = ".", s = 65, alpha = 0.5, cmap = 'jet')
+        #scatter_if(bpt_n2ha, bpt_o3hb, is_starforming == 0, c=r_Re, marker = ".", s = 65, alpha = 0.5, cmap = 'jet')
         
         ax_bpt.set_xlim(xmin, xmax)
         ax_bpt.set_ylim(ymin, ymax)
         ax_bpt.set_aspect((xmax-xmin)/(ymax-ymin))
         
-        cb_max = math.ceil(np.amax(r_Re))
-
+        #cb_max = math.ceil(np.amax(r_Re))
         
-        cb = plt.colorbar(shrink = .7)
-        cb.set_label('r/$R_e$', rotation = 270, labelpad = 25)
+        
+        cb_bpt = plt.colorbar(shrink = .7)
+        cb_bpt.set_label('r/$R_e$', rotation = 270, labelpad = 25)
         #plt.axes().set_aspect('equal')
-        plt.clim(0,cb_max)
+        #plt.clim(0,20)
         try:
             plt.tight_layout()
         except ValueError:
             print("all NaN")
+            file = open("error_files.txt", "w")
+            file.write(plateifu + "\n")
+            file.close()
             continue
         
         Ha[is_starforming==0]=np.nan
@@ -510,7 +542,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         plt.title("H-alpha Flux")
         cs=plt.gca().contour(Ha_2d, 8, colors='k', extent=shapemap, origin='upper', zorder = 2)
         plt.gca().clabel(cs, inline=1, fontsize=5)
-        css = plt.gca().contour(r_Re*2,[1],extent=shapemap, colors='r', origin = 'upper', zorder = 2, z = 1)
+        css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='r', origin = 'upper', zorder = 2, z = 1)
 
         #plt.gca().clabel(css, inline=1)
         plt.gca().invert_yaxis()
@@ -527,6 +559,9 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #plt.xlim, plt.ylim
         
         mask = hdulist['EMLINE_GVEL_MASK'].data[18,:,:]
+        
+        #make white be zero
+        #find min and max of velocity, whichever one's absolute value is larger, use as min and max
 
         velocity[np.isinf(velocity)==True]=np.nan
         #velocity[(np.isnan(snmap)==True)|(snmap==0)]=np.nan
@@ -537,6 +572,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##Makes a mask
         #mask = (Ha==0).flatten()
         ##Adds another subplot
+        
         a = fig.add_subplot(2,3,3)
         ##Makes  a scatter plot of the data
         badpix_vel = ((velocity_err) > 25)
@@ -545,13 +581,30 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         vel_min = np.nanpercentile(velocity, 5)
         vel_max = np.nanpercentile(velocity, 95)
         
+        if abs(vel_min) > abs(vel_max):
+            vel_final = abs(vel_min)
+            want = vel_max
+        else:
+            vel_final = abs(vel_max)
+            want = vel_min
 
-        imgplot = plt.imshow(velocity, origin = "lower", cmap = "RdYlBu_r", extent = shapemap, vmin = vel_min, vmax = vel_max)
+            
+        print(vel_min)
+        print(vel_max)
+        
+        
+
+        imgplot = plt.imshow(velocity, origin = "lower", cmap = "RdYlBu_r", extent = shapemap, vmin = -vel_final, vmax = vel_final)
+        css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='green', origin = 'lower', zorder = 2, z = 1)
         
         plt.title("Gas Velocity")
         
 
         cb = plt.colorbar(shrink = .7)
+        if ((vel_min <=0) and (vel_max <=0)):
+            plt.clim(-vel_final, want)
+        else:
+            plt.clim(-vel_final,vel_final)
         cb.set_label('km/s', rotation = 270, labelpad = 25)
         a.set_facecolor('white')
         
@@ -610,28 +663,35 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         n2_err = errs[19,:,:]
         NII = fluxes[19,:,:]
         """
+        
+        def func(x, m, b):
+            return m*x+b
+        
+        abundance = logOH12
+        radius = r_Re
+            
+        trialX = np.linspace(np.amin(radius.ravel()), np.amax(radius.ravel()), 1000)
+        
+        valid = ~(np.isnan(radius) | np.isnan(abundance) | np.isinf(radius) | np.isinf(abundance))
+        
                 
         cond_err = logOH12error.ravel()<np.nanpercentile(logOH12error.ravel(), 95)
         max_err = np.nanpercentile(logOH12error.ravel(), 95)
-        condition = (logOH12error.flatten() < max_err) & ((Ha/Ha_err).flatten() > 3) & ((OIII/o3_err).flatten() >3) & ((H_beta/Hb_err).flatten() > 3) & ((NII/n2_err).flatten() >3)
+        condition = (logOH12error.flatten() < max_err) & ((Ha/Ha_err).flatten() > 3) & ((s22/s22_err).flatten() >3) & ((s21/s21_err).flatten() > 3) & ((NII/n2_err).flatten() >3)
         scatter_if(r_Re.flatten(), logOH12.flatten(), condition, s= 10, edgecolors = "black", color = "gray", zorder = 1)
-        plt.title("Metallicity Gradient")
-
-        plt.errorbar(r_Re.ravel()[condition], logOH12.ravel()[condition], yerr=logOH12error.ravel()[condition], fmt=None, errorevery = 45, capsize = 15, color = "green", zorder = 2)
-        #imgplot = plt.scatter(r_Re.flatten(), logOH12.flatten(), s=41, color = "red")
         
-        #m=np.polyfit(r_Re.flatten()[idx], logOH12.flatten()[idx], 1)
-        #f = np.poly1d(m)
-        #m= np.polyfit(r_Re.flatten(), logOH12.flatten(), 2)
-        #indarr=np.argsort(r_Re.flatten()[idx])
-        #plt.plot(r_Re.flatten()[idx][indarr], f(r_Re.flatten()[idx][indarr]))
-        #plt.ylim(8,9)
-        #plt.xlim(0, 2.25)
-        #plt.show()
+        popt, pcov = curve_fit(func, radius[valid].ravel(), abundance[valid].ravel(), check_finite = True)
+        plt.plot(radius[valid].ravel(), func(radius[valid].ravel(), *popt), 'g', label = 'linear fit')
+        
+        plt.legend()
+        plt.title("Metallicity Gradient")
+        plt.xlim(xmin = 0)
+
+        plt.errorbar(r_Re.ravel()[condition], logOH12.ravel()[condition], yerr=logOH12error.ravel()[condition], fmt=None, errorevery = 45, capsize = 15, color = "black", zorder = 2)
         
 
         shape = (logOH12.shape[1])
-        shapemap = [-.5*shape, .5*shape, -.5*shape, .5*shape]
+        shapemap = [-.25*shape, .25*shape, -.25*shape, .25*shape]
 
         #logOH12_flat = logOH12.flatten()
         
@@ -647,8 +707,9 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         
         minimum = np.nanpercentile(logOH12, 5)
         maximum = np.nanpercentile(logOH12, 95)
+        median = np.nanpercentile(logOH12, 50)
         
-        badpix = (logOH12error > max_err) | ((Ha/Ha_err) < 3) | ((OIII/o3_err) < 3) | ((H_beta/Hb_err) < 3) | ((NII/n2_err) < 3) |  (ew_cut < 3)
+        badpix = (logOH12error > max_err) | ((Ha/Ha_err) < 3) | ((s22/s22_err) < 3) | ((s21/s21_err) < 3) | ((NII/n2_err) < 3) |  (ew_cut < 3)
         logOH12[badpix]=np.nan
         
 
@@ -660,7 +721,18 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             plt.tight_layout()
         except ValueError:
             print("all NaN")
+            
+        if ((maximum - minimum) < .2):
+            maximum = median + 0.1
+            minimum = median - 0.1
+        
+        
+        #badpix=np.where((np.isnan(radius)==True) | (np.isnan(abundance)==True)
+        #issf[badpix]=np.nan
+
+            
         imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap, vmin = minimum, vmax = maximum, zorder = 1)
+
         plt.title("Metallicity Map")
         
             
@@ -679,7 +751,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         plt.gca().clabel(cs, inline=1, fontsize=5)
         
 
-        css = plt.gca().contour(r_Re*2,[1],extent=shapemap, colors='red', origin = 'upper', zorder = 2, z = 1, edgecolors = "black")
+        css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='red', origin = 'upper', zorder = 2, z = 1, edgecolors = "black")
 
 
         #plt.gca().clabel(css)
@@ -723,11 +795,12 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         
         #plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
         #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/gaalxy_faceon_average_line_' + plateifu +".png", bbox_inches = 'tight')
-        plt.show()
-        #plt.close()
+        #plt.show()
+        plt.close('all')
         print("Done with this one.")
         print("--------------------------------------------------")
         #leedle
+
         """
         leedle
         if i >5:
