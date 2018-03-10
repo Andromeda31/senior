@@ -123,6 +123,23 @@ def array_if(array,condition=None):
         return array1
     ret=array1[np.where(condition)]
     return ret
+    
+#It will take an image and radius array (distarr; same size as the image) as arguments. Because of the way it was coded up, it works best when the distarr array is in units of pixels, i.e. don't use the R_re array.
+    
+def radial_profile(image,centre=None,distarr=None,mask=None):
+    if centre is None:
+        centre=np.array(image.shape,dtype=float)/2
+    if distarr is None:
+        y,x=np.indices(image.shape)
+        distarr=np.sqrt((x-centre[0])**2 + (y-centre[1])**2)
+    if mask is None:
+        mask=np.ones(image.shape)
+    rmax=int(np.max(distarr))
+    r=np.linspace(0,rmax,rmax+1)
+    rp=np.zeros(len(r))
+    for i in range(0,len(r)):
+        rp[i]=np.nanmean(image[np.where((distarr.astype(int)==i) & (mask==1.0) & (np.isinf(image)==False))])
+    return r,rp
 
 
 """
@@ -166,6 +183,8 @@ with open('/home/celeste/Documents/astro_research/thesis_git/mass_data.txt') as 
 plate_num = []
 fiber_num = []
 split = []
+
+#file_open = open("error_files.txt", "w")
 
 ##Goes through all files in the folder
 for ii in range(0, len(file_names)):
@@ -414,30 +433,36 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #print("Axis ratio: ", axis) 
         #print("Mass is " + str(mass))
         
+#################################################################################
+#
+#   Mass of galaxy to get slope of average profile from Belfiore
+#  
+#################################################################################
+        
         if mass > 10.75:
-            m = -0.06576751761269369
-            b = 8.826541125371161
+            m = -0.16878698011761817
+            b = 8.92174257450408
         if mass > 10.50 and mass <= 10.75:
-            m = -0.08089943006458505
-            b = 8.824202580328505
+            m = -0.19145937059393828
+            b = 8.898917413495317
         if mass > 10.25 and mass <= 10.50:
-            m = -0.10526083712519829
-            b = 8.81995506359879
+            m = -0.16938127151421675
+            b = 8.825998835583249
         if mass > 10.00 and mass <= 10.25:
-            m = -0.12427905762033492
-            b = 8.791749940700669
+            m = -0.1762907767970223
+            b = 8.713865209075324
         if mass > 9.75 and mass <= 10.00:
-            m = -0.08320549783022192
-            b = 8.709540598630488
+            m = -0.14756252418062643
+            b = 8.59167993089605
         if mass > 9.50 and mass <= 9.75:
-            m = -0.052153896639010065
-            b = 8.617252739908452
+            m = -0.07514461331863775
+            b = 8.36144939226056
         if mass > 9.25 and mass <= 9.50:
-            m = -0.047762559161765784
-            b = 8.502512520775594
+            m = -0.05300368644036175
+            b = 8.26602769508888
         if mass <= 9.25:
-            m = 0.011644012238230033
-            b = 8.359909467340257
+            m = -0.05059620593888811
+            b = 8.147647436306206
         
         #print("Slope: ", m)
         #print("intercept: ", b)
@@ -448,6 +473,12 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             for item in range(0, len(O_B[element])):
                 if O_B[element][item] >= 0:
                     zeros = True
+
+#################################################################################
+#
+#   BPT Diagram Creator
+#  
+#################################################################################
         
         ax_bpt = fig.add_subplot(2, 3, 4)
         if zeros == True:
@@ -474,13 +505,13 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         
         x=np.linspace(-0.133638005,0.75,100)
         y=2.1445*x+0.465
-        ax_bpt.plot(x, y, '--', color = "green", lw = 1)
+        ax_bpt.plot(x, y, '--', color = "green", lw = 1, label = "Seyfert/LINER")
 
         
         bpt_n2ha = np.log10(NII/H_alpha)
         bpt_o3hb = np.log10(OIII/H_beta)
         
-        badpix = ((Ha/Ha_err) < 3) | ((NII/n2_err) < 3) | ((OIII/o3_err) < 3) | ((NII/n2_err) < 3)
+        badpix = ((Ha/Ha_err) < 3) | ((NII/n2_err) < 3) | ((OIII/o3_err) < 3) | ((NII/n2_err) < 3) | np.isinf(bpt_n2ha) | np.isinf(bpt_o3hb)
         bpt_n2ha[badpix] = np.nan
         bpt_o3hb[badpix] = np.nan
         
@@ -493,11 +524,14 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #ymax = bpt_o3hb95 + 0.1
         ymin = np.nanmin(bpt_o3hb) - 0.1
         ymax = np.nanmax(bpt_o3hb) + 0.1
+        plt.legend()
+        
+        
         
         #bad = is_starforming != 1
         #r_Rebpt = r_Re[bad]
         
-        scatter_if(bpt_n2ha, bpt_o3hb, (is_starforming == 1) | (is_starforming == 0), c=r_Re, marker = ".", s = 65, alpha = 0.5, cmap = 'jet')
+        scatter_if(bpt_n2ha, bpt_o3hb, (is_starforming == 1) | (is_starforming == 0), c=r_Re, marker = ".", s = 65, alpha = 0.5, cmap = 'jet_r')
         #scatter_if(bpt_n2ha, bpt_o3hb, is_starforming == 0, c=r_Re, marker = ".", s = 65, alpha = 0.5, cmap = 'jet')
         
         ax_bpt.set_xlim(xmin, xmax)
@@ -511,14 +545,20 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         cb_bpt.set_label('r/$R_e$', rotation = 270, labelpad = 25)
         #plt.axes().set_aspect('equal')
         #plt.clim(0,20)
+        #first_time = 1
+        
+        plt.tight_layout()
+        
         try:
             plt.tight_layout()
         except ValueError:
             print("all NaN")
-            file = open("error_files.txt", "w")
-            file.write(plateifu + "\n")
-            file.close()
+            #file_open = open("error_files.txt", "a")
+            #first_time = 0
+            #file_open.write(plateifu + "\n")
+            #file.close()
             continue
+
         
         Ha[is_starforming==0]=np.nan
         logOH12[is_starforming==0]=np.nan
@@ -531,8 +571,13 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
 
 
-        ##Adds to the plot
-        ##Is 2by3 and this is the second image
+
+#################################################################################
+#
+#   Halpha Flux 2-D
+#  
+#################################################################################
+
         a = fig.add_subplot(2,3,2)
         
         badpix = ((Ha/Ha_err) < 3)
@@ -572,6 +617,12 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##Makes a mask
         #mask = (Ha==0).flatten()
         ##Adds another subplot
+
+#################################################################################
+#
+#   Velocity Map
+#  
+#################################################################################
         
         a = fig.add_subplot(2,3,3)
         ##Makes  a scatter plot of the data
@@ -608,6 +659,11 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         cb.set_label('km/s', rotation = 270, labelpad = 25)
         a.set_facecolor('white')
         
+#################################################################################
+#
+#   Plots Galaxy Image
+#  
+#################################################################################
 
 
         ##Adds another subplot with the plateifu
@@ -624,14 +680,11 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         plt.title("Galaxy "  + str(plate_number) + "-" + str(fiber_number))
         
 
-        #print((~(logOH12.mask)).sum())
-
-        for a in range(len(logOH12)):
-	        for c in range(len(logOH12[0])):
-		        if (logOH12[a][c] < 7):
-			        logOH12[a][c] = None
-        #print("Max R_E")
-        #print(np.max(r_Re.flatten()))
+#################################################################################
+#
+#   Metallicity Gradient with fitted Lines
+#  
+#################################################################################
        
 			        
 
@@ -650,20 +703,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         plt.plot(r_Re.flatten()[idx][indarr], yfit, color = "red", zorder = 3)
         
         
-        #plt.scatter(r_Re.flatten(), logOH12.flatten(), s=10, edgecolors = "black", color = "gray", zorder = 1)
-        
-        """
-        H_alpha = fluxes[18,:,:]
-        Ha = H_alpha
-        Ha_err = errs[18,:,:]
-        OIII = fluxes[13,:,:]
-        o3_err = errs[13,:,:]
-        H_beta = fluxes[11,:,:]
-        Hb_err = errs[11,:,:]
-        n2_err = errs[19,:,:]
-        NII = fluxes[19,:,:]
-        """
-        
+     
         def func(x, m, b):
             return m*x+b
         
@@ -672,22 +712,40 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             
         trialX = np.linspace(np.amin(radius.ravel()), np.amax(radius.ravel()), 1000)
         
-        valid = ~(np.isnan(radius) | np.isnan(abundance) | np.isinf(radius) | np.isinf(abundance))
-        
-                
         cond_err = logOH12error.ravel()<np.nanpercentile(logOH12error.ravel(), 95)
         max_err = np.nanpercentile(logOH12error.ravel(), 95)
         condition = (logOH12error.flatten() < max_err) & ((Ha/Ha_err).flatten() > 3) & ((s22/s22_err).flatten() >3) & ((s21/s21_err).flatten() > 3) & ((NII/n2_err).flatten() >3)
         scatter_if(r_Re.flatten(), logOH12.flatten(), condition, s= 10, edgecolors = "black", color = "gray", zorder = 1)
+        plt.errorbar(r_Re.ravel()[condition], logOH12.ravel()[condition], yerr=logOH12error.ravel()[condition], fmt=None, errorevery = 45, capsize = 15, color = "black", zorder = 2)
         
-        popt, pcov = curve_fit(func, radius[valid].ravel(), abundance[valid].ravel(), check_finite = True)
-        plt.plot(radius[valid].ravel(), func(radius[valid].ravel(), *popt), 'g', label = 'linear fit')
+        rad_pix=hdulist['SPX_ELLCOO'].data[0,:,:]*2.0 #since there are 2 pixels/arcsec
+        rad,rp=radial_profile(image=logOH12,distarr=rad_pix)
+        rad=rad/(2*Re) #This is now in units of Re.
+        
+        
+        valid = ~(np.isnan(rad) | np.isnan(rp) | np.isinf(rad) | np.isinf(rp) | ((rad < .5) | (rad > 2)))
+        
+        #plt.plot(rad, rp, 'g', label = 'linear fit')
+        
+        try:
+            popt, pcov = curve_fit(func, rad[valid], rp[valid], check_finite = True)
+        except TypeError:
+            print("Improper input: N=2 must not exceed M=0")
+            plt.close('all')
+            continue
+        plt.plot(rad[valid], func(rad[valid], *popt), 'cyan', label = 'linear fit', linewidth = 5)
+
         
         plt.legend()
         plt.title("Metallicity Gradient")
         plt.xlim(xmin = 0)
-
-        plt.errorbar(r_Re.ravel()[condition], logOH12.ravel()[condition], yerr=logOH12error.ravel()[condition], fmt=None, errorevery = 45, capsize = 15, color = "black", zorder = 2)
+        
+#################################################################################
+#
+#   Metallicity Radial Plot 3-D
+#  
+#################################################################################
+     
         
 
         shape = (logOH12.shape[1])
@@ -793,7 +851,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##Saves the final image
         print("Saving...")
         
-        #plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
+        plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
         #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/gaalxy_faceon_average_line_' + plateifu +".png", bbox_inches = 'tight')
         #plt.show()
         plt.close('all')
