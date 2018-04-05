@@ -19,6 +19,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 plt.rcParams['axes.facecolor'] = 'white'
 
+#fun galaxy: 8332-12701
 
 
 #from marvin.tools.cube import Cube
@@ -137,9 +138,12 @@ def radial_profile(image,centre=None,distarr=None,mask=None):
     rmax=int(np.max(distarr))
     r=np.linspace(0,rmax,rmax+1)
     rp=np.zeros(len(r))
+    n=np.zeros(len(r))
     for i in range(0,len(r)):
-        rp[i]=np.nanmean(image[np.where((distarr.astype(int)==i) & (mask==1.0) & (np.isinf(image)==False))])
-    return r,rp
+        #change to nanmedian or nanmean
+        rp[i]=np.nanmedian(image[np.where((distarr.astype(int)==i) & (mask==1.0) & (np.isinf(image)==False))])
+        n[i]=len(image[np.where((distarr.astype(int)==i) & (mask==1.0) & (np.isinf(image)==False))])
+    return r,rp, n
 
 
 """
@@ -205,8 +209,21 @@ for ii in range(0, len(file_names)):
 
     ##Main loop over all the plates
     
-#plate_num=['8147']
-#fiber_num = ['3703']
+"""
+Bad Plots?
+
+8445-3701
+8332-1902
+8309-3703
+
+"""
+    
+#plate_num=['9183']
+#fiber_num = ['9102']
+
+count_continue1 = 0
+count_continue2 = 0
+count_continue3 = 0
 
 for i in range(0, len(plate_num)): ##len(plate_num)
 ##for j in range(0, len(fiber_num)):
@@ -216,8 +233,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #hdulist = fits.open('/home/celeste/Documents/astro_research/keepers/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
         hdulist = fits.open('/home/celeste/Documents/astro_research/downloaded_data/MPL-6/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
         
-        #logcube = fits.open('/home/celeste/Documents/astro_research/logcube_files/manga-10001-12702-LOGCUBE.fits')
-        
+        logcube = fits.open('/home/celeste/Documents/astro_research/logcube_files/manga-'+ plate_num[i]+ '-' + fiber_num[i] + '-LOGCUBE.fits.gz')
 
         ##assigns the plate id based on what is in the data cube
         plate_id = hdulist['PRIMARY'].header['PLATEIFU']
@@ -246,6 +262,9 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         s22 = fluxes[21,:,:]
         s21_err = errs[20,:,:]
         s22_err = errs[21,:,:]
+        
+        #I band for contours
+        contours_i = logcube['IIMG'].data
         
         
 
@@ -479,6 +498,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 #   BPT Diagram Creator
 #  
 #################################################################################
+
+#Sum the fluxes over a 3" center of the galaxy, put into is starforming
         
         ax_bpt = fig.add_subplot(2, 3, 4)
         if zeros == True:
@@ -511,7 +532,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         bpt_n2ha = np.log10(NII/H_alpha)
         bpt_o3hb = np.log10(OIII/H_beta)
         
-        badpix = ((Ha/Ha_err) < 3) | ((NII/n2_err) < 3) | ((OIII/o3_err) < 3) | ((NII/n2_err) < 3) | np.isinf(bpt_n2ha) | np.isinf(bpt_o3hb)
+        badpix = ((Ha/Ha_err) < 5) | ((H_beta/Hb_err) < 5) | ((OIII/o3_err) < 3) | ((NII/n2_err) < 3) | np.isinf(bpt_n2ha) | np.isinf(bpt_o3hb)
         bpt_n2ha[badpix] = np.nan
         bpt_o3hb[badpix] = np.nan
         
@@ -553,10 +574,13 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             plt.tight_layout()
         except ValueError:
             print("all NaN")
+            print("==========================================================================================")
             #file_open = open("error_files.txt", "a")
             #first_time = 0
             #file_open.write(plateifu + "\n")
             #file.close()
+            print("value error, all NaN")
+            count_continue1=count_continue1+1
             continue
 
         
@@ -585,9 +609,20 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         Ha_2d[badpix]=np.nan
         imgplot = plt.imshow(Ha_2d, cmap = "viridis", extent = shapemap, zorder = 1)
         plt.title("H-alpha Flux")
-        cs=plt.gca().contour(Ha_2d, 8, colors='k', extent=shapemap, origin='upper', zorder = 2)
-        plt.gca().clabel(cs, inline=1, fontsize=5)
-        css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='r', origin = 'upper', zorder = 2, z = 1)
+        cs=plt.gca().contour(Ha_2d, 8, colors='k', alpha = 0.3, linewidths= [1], extent=shapemap, origin='upper', zorder = 3)
+        csss=plt.gca().contour(contours_i, 8, colors = 'k', extent = shapemap, origin = 'upper', zorder = 4)
+        #plt.gca().clabel(cs, inline=1, fontsize=5)
+        css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='r', origin = 'upper', zorder = 2, z = 2)
+        
+        """
+        
+        plt.close()
+        plt.imshow(r_Re)
+        plt.colorbar()
+        plt.show()
+        print(r_Re)
+        
+        """
 
         #plt.gca().clabel(css, inline=1)
         plt.gca().invert_yaxis()
@@ -674,6 +709,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             image = img.imread('/home/celeste/Documents/astro_research/astro_images/marvin_images/' + plateifu + '.png')
         except ValueError:
             print("No image.")
+            print("========================================================================================")
         lum_img = image[:,:,0]
         #plt.subplot(121)
         imgplot = plt.imshow(image)
@@ -700,6 +736,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             plt.tight_layout()
         except ValueError:
             print("all NaN")
+            print("==========================================================================================")
+            count_continue2=count_continue2+1
         plt.plot(r_Re.flatten()[idx][indarr], yfit, color = "red", zorder = 3)
         
         
@@ -718,22 +756,28 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         scatter_if(r_Re.flatten(), logOH12.flatten(), condition, s= 10, edgecolors = "black", color = "gray", zorder = 1)
         plt.errorbar(r_Re.ravel()[condition], logOH12.ravel()[condition], yerr=logOH12error.ravel()[condition], fmt=None, errorevery = 45, capsize = 15, color = "black", zorder = 2)
         
+        condition2 = (logOH12error < max_err) & ((Ha/Ha_err) > 3) & ((s22/s22_err) >3) & ((s21/s21_err) > 3) & ((NII/n2_err) >3)
+        logOH12_2=logOH12.copy()
+        logOH12_2[condition2==False]=np.nan
+        
         rad_pix=hdulist['SPX_ELLCOO'].data[0,:,:]*2.0 #since there are 2 pixels/arcsec
-        rad,rp=radial_profile(image=logOH12,distarr=rad_pix)
+        rad,rp, n =radial_profile(image=logOH12_2,distarr=rad_pix)
         rad=rad/(2*Re) #This is now in units of Re.
         
         
-        valid = ~(np.isnan(rad) | np.isnan(rp) | np.isinf(rad) | np.isinf(rp) | ((rad < .5) | (rad > 2)))
+        valid = ~(np.isnan(rad) | np.isnan(rp) | np.isinf(rad) | np.isinf(rp) | ((rad < .5) | (rad > 2) ) | (n < 10))
         
-        #plt.plot(rad, rp, 'g', label = 'linear fit')
+        plt.plot(rad, rp, 'm', label = 'linear fit')
         
         try:
             popt, pcov = curve_fit(func, rad[valid], rp[valid], check_finite = True)
         except TypeError:
             print("Improper input: N=2 must not exceed M=0")
+            print("==========================================================================================")
             plt.close('all')
+            count_continue=count_continue3+1
             continue
-        plt.plot(rad[valid], func(rad[valid], *popt), 'cyan', label = 'linear fit', linewidth = 5)
+        plt.plot(rad[valid], func(rad[valid], *popt), 'cyan', label = '0.5-2 $R_e$ fit', linewidth = 5)
 
         
         plt.legend()
@@ -779,6 +823,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             plt.tight_layout()
         except ValueError:
             print("all NaN")
+            print("==========================================================================================")
             
         if ((maximum - minimum) < .2):
             maximum = median + 0.1
@@ -806,7 +851,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             #plt.contour(logOH12, 20, colors='k')
         except ValueError:
             print("Value error! Skipping the log0H12 contour plotting....")
-        plt.gca().clabel(cs, inline=1, fontsize=5)
+            print("==========================================================================================")
+        #plt.gca().clabel(cs, inline=1, fontsize=5)
         
 
         css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='red', origin = 'upper', zorder = 2, z = 1, edgecolors = "black")
@@ -851,22 +897,12 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##Saves the final image
         print("Saving...")
         
-        plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/star_faceon_' + plateifu +".png", bbox_inches = 'tight')
+        #plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/star_faceon_' + plateifu +"_v4.1.png", bbox_inches = 'tight')
         #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/gaalxy_faceon_average_line_' + plateifu +".png", bbox_inches = 'tight')
-        #plt.show()
-        plt.close('all')
+        plt.show()
+        #plt.close('all')
         print("Done with this one.")
         print("--------------------------------------------------")
-        #leedle
-
-        """
-        leedle
-        if i >5:
-            leedle
-        """
-
-        #quit()
-
-	    #plt.savefig('/home/celeste/Documents/astro_research/astro_images/six_galaxies/ha_flux_Z_' + plate_num[i] + '_' + fiber_num[i], bbox_inches = 'tight')
-
-
+print("count_contniue1: " + str(count_continue1))
+print("count_contniue2: " + str(count_continue2))
+print("count_contniue3: " + str(count_continue3))
