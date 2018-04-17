@@ -44,10 +44,13 @@ print(len(fiber_num))
 '''
 
 
-with open('/home/celeste/Documents/astro_research/thesis_git/Good_Galaxies_SPX_2_N2S2.txt') as f:
+with open('/home/celeste/Documents/astro_research/thesis_git/Good_Galaxies_SPX_3_N2S2.txt') as f:
     file_names=[]
     for line in f:
         file_names.append(line)
+        
+filename = '/home/celeste/Documents/astro_research/thesis_git/Good_Galaxies_SPX_3_N2S2.txt'
+file_names = np.genfromtxt(filename, usecols=(0), skip_header=1, dtype=str, delimiter=',')
 
     
 for ii in range(0, len(file_names)):
@@ -68,11 +71,13 @@ print(len(fiber_num))
     
 for c in range(0, len(plate_num)):
     #for cc in range(0, len(plate_num))
-        r = requests.get('https://data.sdss.org/sas/mangawork/manga/spectro/analysis/MPL-6/SPX-GAU-MILESHC/' + str(plate_num[c]) + '/' + str(fiber_num[c]) + '/manga-' + str(plate_num[c]) + '-' + str(fiber_num[c]) + '-MAPS-SPX-GAU-MILESHC.fits.gz', auth=('sdss', '2.5-meters'))
+        r = requests.get('https://data.sdss.org/sas/mangawork/manga/spectro/analysis/MPL-7/HYB10-GAU-MILESHC/' + str(plate_num[c]) + '/' + str(fiber_num[c]) + '/manga-' + str(plate_num[c]) + '-' + str(fiber_num[c]) + '-MAPS-HYB10-GAU-MILESHC.fits.gz', auth=('sdss', '2.5-meters'))
 
         ##Saves the file
-        with open('/home/celeste/Documents/astro_research/downloaded_data/MPL-6/manga-' + str(plate_num[c]) + '-' + str(fiber_num[c]) + '-MAPS-SPX-GAU-MILESHC.fits.gz', 'wb') as fd:
+        with open('/home/celeste/Documents/astro_research/downloaded_data/MPL-7/manga-' + str(plate_num[c]) + '-' + str(fiber_num[c]) + '-HYB-SPX-GAU-MILESHC.fits.gz', 'wb') as fd:
 	        for chunk in r.iter_content(chunk_size=128):
 		        fd.write(chunk)
         print("Downloaded " + str(plate_num[c]) + '-' + str(fiber_num[c]))
         print("----------------------------------")
+        if c == 20:
+            blargh

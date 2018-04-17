@@ -126,8 +126,18 @@ def array_if(array,condition=None):
     return ret
     
 #It will take an image and radius array (distarr; same size as the image) as arguments. Because of the way it was coded up, it works best when the distarr array is in units of pixels, i.e. don't use the R_re array.
-    
-def radial_profile(image,centre=None,distarr=None,mask=None):
+
+
+def radial_profile(image,centre=None,distarr=None,mask=None,binwidth=2,radtype='unweighted'):
+    '''
+    image=2D array to calculate RP of.
+    centre=centre of image in pixel coordinates. Not needed if distarr is given.
+    distarr=2D array giving distance of each pixel from the centre.
+    mask = 2D array, 1 if you want to include given pixels, 0 if not.
+    binwidth= width of radial bins in pixels.
+    radtype='weighted' or 'unweighted'. Weighted will give you the average radius of pixels in the bin. Unweighted will give you the middle of each radial bin.
+    '''
+    distarr=distarr/binwidth
     if centre is None:
         centre=np.array(image.shape,dtype=float)/2
     if distarr is None:
@@ -136,14 +146,21 @@ def radial_profile(image,centre=None,distarr=None,mask=None):
     if mask is None:
         mask=np.ones(image.shape)
     rmax=int(np.max(distarr))
-    r=np.linspace(0,rmax,rmax+1)
-    rp=np.zeros(len(r))
-    n=np.zeros(len(r))
+    r_edge=np.linspace(0,rmax,rmax+1)
+    rp=np.zeros(len(r_edge)-1)*np.nan
+    nums=np.zeros(len(r_edge)-1)*np.nan
+    sig=np.zeros(len(r_edge)-1)*np.nan
+    r=np.zeros(len(r_edge)-1)*np.nan
     for i in range(0,len(r)):
-        #change to nanmedian or nanmean
-        rp[i]=np.nanmedian(image[np.where((distarr.astype(int)==i) & (mask==1.0) & (np.isinf(image)==False))])
-        n[i]=len(image[np.where((distarr.astype(int)==i) & (mask==1.0) & (np.isinf(image)==False))])
-    return r,rp, n
+        rp[i]=np.nanmean(image[np.where((distarr>=r_edge[i]) & (distarr<r_edge[i+1]) & (mask==1.0) & (np.isinf(image)==False))])
+        nums[i]=len(np.where((distarr>=r_edge[i]) & (distarr<r_edge[i+1]) & (mask==1.0) & (np.isinf(image)==False) & (np.isnan(image)==False))[0])
+        sig[i]=np.nanstd((image[np.where((distarr>=r_edge[i]) & (distarr<r_edge[i+1]) & (mask==1.0) & (np.isinf(image)==False))]))
+        if radtype=='unweighted':
+            r[i]=(r_edge[i]+r_edge[i+1])/2.0
+        elif radtype=='weighted':
+            r[i]=np.nanmean(distarr[np.where((distarr>=r_edge[i]) & (distarr<r_edge[i+1]) & (mask==1.0) & (np.isinf(image)==False))])
+    r=r*binwidth
+    return r,rp,nums,sig
 
 
 """
@@ -170,14 +187,9 @@ def scatter_if(x_in,y_in,condition=None,**kwargs):
 ##After hoefully downloading all the required fits files, this will read all the names
 #file_names = os.listdir("/home/celeste/Documents/astro_research/keepers")
 #file_names = os.listdir("/home/celeste/Documents/astro_research/fits_files")
-filename = '/home/celeste/Documents/astro_research/thesis_git/Good_Galaxies_SPX_2_N2S2.txt'
+filename = '/home/celeste/Documents/astro_research/thesis_git/Good_Galaxies_SPX_3_N2S2.txt'
 file_names = np.genfromtxt(filename, usecols=(0), skip_header=1, dtype=str, delimiter=',')
-"""
-with open('/home/celeste/Documents/astro_research/thesis_git/Good_Galaxies_SPX_2_N2S2.txt') as f:
-    file_names=[]
-    for line in f:
-        file_names.append(line)
-"""
+
 with open('/home/celeste/Documents/astro_research/thesis_git/mass_data.txt') as f:
     mass_data=[]
     for line in f:
@@ -224,16 +236,38 @@ Bad Plots?
 count_continue1 = 0
 count_continue2 = 0
 count_continue3 = 0
+failed_maps = "failed maps\n"
+failed_logcube = "failed_logcube\n"
 
-for i in range(0, len(plate_num)): ##len(plate_num)
+for i in range(230, len(plate_num)): ##len(plate_num)
 ##for j in range(0, len(fiber_num)):
         print(plate_num[i] + '-' + fiber_num[i])
         print("Index: " + str(i))
+
+        
         ##some black magic
         #hdulist = fits.open('/home/celeste/Documents/astro_research/keepers/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
-        hdulist = fits.open('/home/celeste/Documents/astro_research/downloaded_data/MPL-6/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-SPX-GAU-MILESHC.fits.gz')
+        #hdulist = fits.open('/home/celeste/Documents/astro_research/downloaded_data/MPL-7/manga-' + plate_num[i] + '-' + fiber_num[i] + '-HYB-SPX-GAU-MILESHC.fits.gz')
+
+        try:
+            hdulist = fits.open('/media/celeste/Hypatia/MPL7/HYB/allmaps/manga-' + plate_num[i] + '-' + fiber_num[i] + '-MAPS-HYB10-GAU-MILESHC.fits.gz')
+        except FileNotFoundError:
+            failed_maps = failed_maps + str(plate_num[i]) + "-" + str(fiber_num[i]) + "\n"
+            print("failed on the MAPS file.")
+            print(failed_maps)
+            print("------------------------------------------")
+            continue
         
-        logcube = fits.open('/home/celeste/Documents/astro_research/logcube_files/manga-'+ plate_num[i]+ '-' + fiber_num[i] + '-LOGCUBE.fits.gz')
+        
+        #logcube = fits.open('/home/celeste/Documents/astro_research/logcube_files/manga-'+ str(plate_num[i])+ '-' + str(fiber_num[i]) + '-LOGCUBE.fits.gz')
+        try:
+            logcube = fits.open('/media/celeste/Hypatia/MPL7/LOGCUBES/manga-'+ str(plate_num[i])+ '-' + str(fiber_num[i]) + '-LOGCUBE.fits.gz')
+        except FileNotFoundError:
+            failed_logcube = failed_logcube + str(plate_num[i]) + "-" + str(fiber_num[i]) + "\n"
+            print("failed on the LOGCUBE file.")
+            print(failed_logcube)
+            print("------------------------------------------")
+            continue
 
         ##assigns the plate id based on what is in the data cube
         plate_id = hdulist['PRIMARY'].header['PLATEIFU']
@@ -265,6 +299,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         
         #I band for contours
         contours_i = logcube['IIMG'].data
+        contours_i_same = contours_i
         
         
 
@@ -607,10 +642,11 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         badpix = ((Ha/Ha_err) < 3)
         Ha_2d = Ha
         Ha_2d[badpix]=np.nan
+        contours_i[badpix]=np.nan
         imgplot = plt.imshow(Ha_2d, cmap = "viridis", extent = shapemap, zorder = 1)
         plt.title("H-alpha Flux")
-        cs=plt.gca().contour(Ha_2d, 8, colors='k', alpha = 0.3, linewidths= [1], extent=shapemap, origin='upper', zorder = 3)
-        csss=plt.gca().contour(contours_i, 8, colors = 'k', extent = shapemap, origin = 'upper', zorder = 4)
+        #cs=plt.gca().contour(Ha_2d, 8, colors='k', alpha = 0.3, linewidths= [1], extent=shapemap, origin='upper', zorder = 3)
+        csss=plt.gca().contour(contours_i, 8, colors = 'k', alpha = 0.6, extent = shapemap, origin = 'upper', zorder = 4)
         #plt.gca().clabel(cs, inline=1, fontsize=5)
         css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='r', origin = 'upper', zorder = 2, z = 2)
         
@@ -682,6 +718,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
         imgplot = plt.imshow(velocity, origin = "lower", cmap = "RdYlBu_r", extent = shapemap, vmin = -vel_final, vmax = vel_final)
         css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='green', origin = 'lower', zorder = 2, z = 1)
+        csss=plt.gca().contour(contours_i, 8, colors = 'k', alpha = 0.6, extent = shapemap, zorder = 4)
         
         plt.title("Gas Velocity")
         
@@ -738,7 +775,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             print("all NaN")
             print("==========================================================================================")
             count_continue2=count_continue2+1
-        plt.plot(r_Re.flatten()[idx][indarr], yfit, color = "red", zorder = 3)
+        plt.plot(r_Re.flatten()[idx][indarr], yfit, color = "red", zorder = 3, label = 'Expected profile for stellar mass')
         
         
      
@@ -761,13 +798,13 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         logOH12_2[condition2==False]=np.nan
         
         rad_pix=hdulist['SPX_ELLCOO'].data[0,:,:]*2.0 #since there are 2 pixels/arcsec
-        rad,rp, n =radial_profile(image=logOH12_2,distarr=rad_pix)
+        rad, rp, n, sig =radial_profile(image=logOH12_2,distarr=rad_pix)
         rad=rad/(2*Re) #This is now in units of Re.
         
         
         valid = ~(np.isnan(rad) | np.isnan(rp) | np.isinf(rad) | np.isinf(rp) | ((rad < .5) | (rad > 2) ) | (n < 10))
         
-        plt.plot(rad, rp, 'm', label = 'linear fit')
+        plt.plot(rad, rp, '.m', label = 'binned median', markersize =7, marker = 'D')
         
         try:
             popt, pcov = curve_fit(func, rad[valid], rp[valid], check_finite = True)
@@ -817,6 +854,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
         Ha_contour = Ha
         Ha_contour[badpix]=np.nan
+        contours_i_same[badpix]=np.nan
         
         a = fig.add_subplot(2,3,5)
         try:
@@ -847,7 +885,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             cs=plt.gca().contour(logOH12, 8, colors='k', extent = shapemap, origin="upper")
         """
         try:
-            cs=plt.gca().contour(Ha_contour, 8, colors='k', extent=shapemap, origin='upper', zorder = 2)
+            #cs=plt.gca().contour(Ha_contour, 8, colors='k', alpha = 0.3, linewidths= [1], extent=shapemap, origin='upper', zorder = 2)
+            csss=plt.gca().contour(contours_i_same, 8, colors = 'k', alpha = 0.6, extent = shapemap, origin = 'upper', zorder = 3)
             #plt.contour(logOH12, 20, colors='k')
         except ValueError:
             print("Value error! Skipping the log0H12 contour plotting....")
@@ -855,7 +894,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #plt.gca().clabel(cs, inline=1, fontsize=5)
         
 
-        css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='red', origin = 'upper', zorder = 2, z = 1, edgecolors = "black")
+        css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='red', origin = 'upper', alpha = .6, zorder = 2, z = 1, edgecolors = "black")
 
 
         #plt.gca().clabel(css)
@@ -896,13 +935,14 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             
         ##Saves the final image
         print("Saving...")
-        
+        print(fig.dpi)
+        plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/TERABYTE/MPL7/logcube_' + plateifu +"_v5.1.png", bbox_inches = 'tight', dpi = 90)
         #plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/star_faceon_' + plateifu +"_v4.1.png", bbox_inches = 'tight')
         #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/gaalxy_faceon_average_line_' + plateifu +".png", bbox_inches = 'tight')
-        plt.show()
+        #plt.show()
         #plt.close('all')
+        plt.close('all')
         print("Done with this one.")
         print("--------------------------------------------------")
-print("count_contniue1: " + str(count_continue1))
-print("count_contniue2: " + str(count_continue2))
-print("count_contniue3: " + str(count_continue3))
+print(failed_logcube)
+print(failed_maps)

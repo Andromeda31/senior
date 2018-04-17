@@ -44,10 +44,15 @@ for ii in range(0, len(obj)):
     
 '''
 
+filename = '/home/celeste/Documents/astro_research/thesis_git/Good_Galaxies_SPX_3_N2S2.txt'
+file_names = np.genfromtxt(filename, usecols=(0), skip_header=1, dtype=str, delimiter=',')
+'''
 with open('/home/celeste/Documents/astro_research/thesis_git/adam_galaxies.txt') as f:
     file_names=[]
     for line in f:
         file_names.append(line)
+        
+'''
     
 for ii in range(0, len(file_names)):
     ##Removes all non alphanumeric characters and only leaves numbers and periods
