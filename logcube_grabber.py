@@ -93,6 +93,9 @@ Bad Plots?
 import shutil
 from urllib.request import urlretrieve
 
+plate_num = ['8718']
+fiber_num = ['3703']
+
 for i in range(0, len(plate_num)): ##len(plate_num)
 ##for j in range(0, len(fiber_num)):
         print(plate_num[i] + '-' + fiber_num[i])
@@ -103,7 +106,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         r = requests.get('https://data.sdss.org/sas/mangawork/manga/spectro/redux/v2_4_3/' + plate_num[i] + '/stack/manga-' + plate_num[i] + '-' + fiber_num[i] + '-LOGCUBE.fits.gz', auth=('sdss', '2.5-meters'), stream = True)
 
         ##Saves the file
-        handle = open('/home/celeste/Documents/astro_research/logcube_files/manga-'+ str(plate_num[i])+ '-' + str(fiber_num[i]) + '-LOGCUBE.fits.gz', 'wb')
+        #handle = open('/home/celeste/Documents/astro_research/logcube_files/manga-'+ str(plate_num[i])+ '-' + str(fiber_num[i]) + '-LOGCUBE.fits.gz', 'wb')
+        handle = open('/media/celeste/Hypatia/MPL7/LOGCUBES/manga-'+ str(plate_num[i])+ '-' + str(fiber_num[i]) + '-LOGCUBE.fits.gz', 'wb')
         for chunk in r.iter_content(chunk_size=1024*100):
             if chunk:  # filter out keep-alive new chunks
                 handle.write(chunk)

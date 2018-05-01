@@ -230,16 +230,19 @@ Bad Plots?
 
 """
     
-#plate_num=['9183']
-#fiber_num = ['9102']
+#plate_num=['9194']
+#fiber_num = ['12701']
+#plate_num = ['8252', '8338', '8568', '9865']
+#fiber_num = ['12705', '12701', '12702', '12705']
 
 count_continue1 = 0
 count_continue2 = 0
 count_continue3 = 0
 failed_maps = "failed maps\n"
 failed_logcube = "failed_logcube\n"
+failed_other = "failed_TYPERROR\n"
 
-for i in range(230, len(plate_num)): ##len(plate_num)
+for i in range(0, len(plate_num)): ##len(plate_num)
 ##for j in range(0, len(fiber_num)):
         print(plate_num[i] + '-' + fiber_num[i])
         print("Index: " + str(i))
@@ -789,6 +792,7 @@ for i in range(230, len(plate_num)): ##len(plate_num)
         
         cond_err = logOH12error.ravel()<np.nanpercentile(logOH12error.ravel(), 95)
         max_err = np.nanpercentile(logOH12error.ravel(), 95)
+        max_err = 0.1
         condition = (logOH12error.flatten() < max_err) & ((Ha/Ha_err).flatten() > 3) & ((s22/s22_err).flatten() >3) & ((s21/s21_err).flatten() > 3) & ((NII/n2_err).flatten() >3)
         scatter_if(r_Re.flatten(), logOH12.flatten(), condition, s= 10, edgecolors = "black", color = "gray", zorder = 1)
         plt.errorbar(r_Re.ravel()[condition], logOH12.ravel()[condition], yerr=logOH12error.ravel()[condition], fmt=None, errorevery = 45, capsize = 15, color = "black", zorder = 2)
@@ -798,11 +802,11 @@ for i in range(230, len(plate_num)): ##len(plate_num)
         logOH12_2[condition2==False]=np.nan
         
         rad_pix=hdulist['SPX_ELLCOO'].data[0,:,:]*2.0 #since there are 2 pixels/arcsec
-        rad, rp, n, sig =radial_profile(image=logOH12_2,distarr=rad_pix)
+        rad, rp, n, sig =radial_profile(image=logOH12_2,distarr=rad_pix, radtype = 'weighted')
         rad=rad/(2*Re) #This is now in units of Re.
         
         
-        valid = ~(np.isnan(rad) | np.isnan(rp) | np.isinf(rad) | np.isinf(rp) | ((rad < .5) | (rad > 2) ) | (n < 10))
+        valid = ~(np.isnan(rad) | np.isnan(rp) | np.isinf(rad) | np.isinf(rp) | ((rad < .5) | (rad > 2) ) | (n < 5))
         
         plt.plot(rad, rp, '.m', label = 'binned median', markersize =7, marker = 'D')
         
@@ -810,6 +814,8 @@ for i in range(230, len(plate_num)): ##len(plate_num)
             popt, pcov = curve_fit(func, rad[valid], rp[valid], check_finite = True)
         except TypeError:
             print("Improper input: N=2 must not exceed M=0")
+            failed_other = failed_other + str(plate_num[i]) + "-" + str(fiber_num[i]) + "\n"
+            print("failed on the TYPE ERROR.")
             print("==========================================================================================")
             plt.close('all')
             count_continue=count_continue3+1
@@ -844,12 +850,13 @@ for i in range(230, len(plate_num)): ##len(plate_num)
         #exent = .5
         logOH12[np.isinf(logOH12)==True]=np.nan
         
-        minimum = np.nanpercentile(logOH12, 5)
-        maximum = np.nanpercentile(logOH12, 95)
-        median = np.nanpercentile(logOH12, 50)
         
         badpix = (logOH12error > max_err) | ((Ha/Ha_err) < 3) | ((s22/s22_err) < 3) | ((s21/s21_err) < 3) | ((NII/n2_err) < 3) |  (ew_cut < 3)
         logOH12[badpix]=np.nan
+        
+        minimum = np.nanpercentile(logOH12, 5)
+        maximum = np.nanpercentile(logOH12, 95)
+        median = np.nanpercentile(logOH12, 50)
         
 
         Ha_contour = Ha
@@ -935,14 +942,14 @@ for i in range(230, len(plate_num)): ##len(plate_num)
             
         ##Saves the final image
         print("Saving...")
-        print(fig.dpi)
-        plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/TERABYTE/MPL7/logcube_' + plateifu +"_v5.1.png", bbox_inches = 'tight', dpi = 90)
+        ##plt.show()
+        plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/TERABYTE/MPL7/logcube_' + plateifu +"_v5.2.png", bbox_inches = 'tight', dpi = 84)
         #plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/star_faceon_' + plateifu +"_v4.1.png", bbox_inches = 'tight')
         #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/gaalxy_faceon_average_line_' + plateifu +".png", bbox_inches = 'tight')
         #plt.show()
-        #plt.close('all')
         plt.close('all')
         print("Done with this one.")
         print("--------------------------------------------------")
 print(failed_logcube)
 print(failed_maps)
+print(failed_other)
