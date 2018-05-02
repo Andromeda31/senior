@@ -16,15 +16,28 @@ from matplotlib import patches
 import sys
 from scipy.optimize import curve_fit
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import re
 
 
-drpall = t.Table.read('/home/celeste/Documents/astro_research/drpall-v2_3_1.fits')
-drpall = fits.open('/home/celeste/Documents/astro_research/drpall-v2_3_1.fits')
+drpall=fits.open('/home/celeste/Documents/astro_research/drpall-v2_3_1.fits')
 
-print(drpall.info())
+mags=drpall[1].data['NSA_ELPETRO_ABSMAG']
 
-print(drpall[1].header)
-print(drpall[2].data['nsa_sersic_flux'])
+u=mags[:,2]
+g=mags[:,3]
+r=mags[:,4]
+i=mags[:,5]
+
+mass_total = np.log10(drpall[1].data['nsa_elpetro_mass'])-np.log10(.49)
+
+plt.scatter(mass_total, g-r, c = 'g', alpha = 0.5)
+plt.scatter(mass_total, r-i, c = 'r', alpha = 0.5)
+plt.scatter(mass_total, u-r, c = 'b', alpha = 0.5)
+plt.xlabel("$Log_{10}$ Stellar Mass")
+xmin, xmax = 8.5, 12
+ymin, ymax = -1, 3.5
+plt.xlim(xmin, xmax)
+plt.ylim(ymin, ymax)
 
 
 filename = '/home/celeste/Documents/astro_research/thesis_git/Good_Galaxies_SPX_3_N2S2.txt'
@@ -34,17 +47,6 @@ plate_num = []
 fiber_num = []
 split = []
 
-header = drpall[1].header
-data = drpall[2].data
-
-print(header)
-
-print(data)
-
-mass_total = math.log10(drpall['nsa_elpetro_mass'])-np.log10(.49)
-colorg = obj(['GFWHM'])
-colorr = obj(['RFWHM'])
-colori = obj(['IFWHM'])
 
 #file_open = open("error_files.txt", "w")
 
@@ -52,6 +54,9 @@ mass_new = []
 colorg_new = []
 colorr_new = []
 colori_new = []
+coloru_new = []
+
+tbdata = drpall[1].data
 
 ##Goes through all files in the folder
 for ii in range(0, len(file_names)):
@@ -67,21 +72,20 @@ for ii in range(0, len(file_names)):
     fiber_num.insert(ii, two)
     
     
+  
+for x in range(0, len(plate_num)):
+    plateifu = (str(plate_num[x]) + '-' + str(fiber_num[x]))
+
+    ind = np.where(tbdata['plateifu'] == plateifu)
+    mass_new.insert(x, np.log10(tbdata['nsa_elpetro_mass'][ind][0])-np.log10(.49))
+    coloru_new.insert(x, tbdata['NSA_ELPETRO_ABSMAG'][ind][:,2])
+    colorg_new.insert(x, tbdata['NSA_ELPETRO_ABSMAG'][ind][:,3])
+    colorr_new.insert(x, tbdata['NSA_ELPETRO_ABSMAG'][ind][:,4])
+    colori_new.insert(x, tbdata['NSA_ELPETRO_ABSMAG'][ind][:,5])
     
-for i in range(0, len(plate_num)):
-    plateifu = (str(plate_num[i]) + '-' + str(fiber_num[i]))
-    obj = drpall[drpall['plateifu']==plateifu][0]
-    mass_new.insert(i, math.log10(obj['nsa_elpetro_mass'])-np.log10(.49))
-    colorg_new.insert(i, obj(['GFWHM']))
-    colorr_new.insert(i, obj(['RFWHM']))
-    colori_new.insert(i, obj(['IFWHM']))
-    
-    
-plt.plot(mass_total, colorg)
-plt.plot(mass_total, colorr)
-plt.plot(mass_total, colori)
-plt.plot(mass_new, colorg_new)
-plt.plot(mass_new, colorr_new)
-plt.plot(mass_new, colori_new)
+print(mass_new)
+print(np.asarray(coloru_new)-np.asarray(colorr_new))
+plt.scatter(mass_new, np.asarray(coloru_new)-np.asarray(colorr_new), c='black')
 plt.show()
+
 
