@@ -85,7 +85,7 @@ for x in range(0, len(plate_num)):
     
 print(mass_new)
 print(np.asarray(coloru_new)-np.asarray(colorr_new))
-plt.scatter(mass_new, np.asarray(coloru_new)-np.asarray(colorr_new), c='black')
+plt.scatter(mass_new, np.asarray(colorg_new)-np.asarray(colori_new), c='black')
 plt.show()
 
 
