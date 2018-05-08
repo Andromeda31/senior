@@ -257,7 +257,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         except FileNotFoundError:
             failed_maps = failed_maps + str(plate_num[i]) + "-" + str(fiber_num[i]) + "\n"
             print("failed on the MAPS file.")
-            print(failed_maps)
+            #print(failed_maps)
             print("------------------------------------------")
             continue
         
@@ -377,49 +377,6 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         logOH12, logOH12error = n2s2_dopita16_w_errs(H_alpha, NII, s21, s22, Ha_err, n2_err, s21_err, s22_err)
         is_starforming = is_sf_array(NII,H_alpha,OIII, H_beta)
         
-        #plt.errorbar(rad.ravel(), met.ravel(), yerr=logOH12error.ravel(), fmt='o', errorevery=10)
-        
-
-        ##Not sure what this is either
-        ##This is the logOH12 issue here
-        #print(*logR.shape)
-        '''
-        for ii, jj in np.ndindex(*logR.shape):
-	        if logR.mask[ii,jj]:continue
-	        try:
-		        logOH12[ii, jj] = newton(x2logR_zero,x0=.1,args=(cs, logR[ii,jj]))+8.69
-	        except (SystemExit, KeyboardInterrupt):
-		        raise
-	        except:
-		        pass
-		'''
-		
-        #print(len(logOH12))
-		        
-	
-        #print("average ", np.ma.median(np.log10(R)))
-
-        #xplus = (-c1 + np.sqrt(c1**2 - 4*(c0-np.log10(R))*(c2)))/(2*c2)
-        #xminus =(-c1 - np.sqrt(c1**2 - 4*(c0-np.log10(R))*(c2)))/(2*c2)
-        #print((~(xplus.mask)).sum())
-        #print((xminus<0).sum())
-        #pows = np.linspace(0, 2, 3)
-        #x = np.sum([c*(R**p) for p, c in zip(pows,cs)])
-        #logOH12 = np.log10(np.absolute(xminus))+8.69
-        #print((~(logOH12.mask)).sum())
-		
-        ##Gets rid of the Ha value if it is ridiculously high		
-        
-        """
-        for l in range(len(Ha)):
-	        for m in range(len(Ha[0])):
-		        if (Ha[l][m] > 150):
-			        Ha[l][m] = np.nan
-		        if (Ha[l][m] < 0):
-		            Ha[l][m] = np.nan
-		"""
-	    
-		
         ##Finds the standard deviation and mean for future use	
         std_dev = np.std(Ha)
         mean = np.mean(Ha)	
@@ -446,28 +403,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##places text on the plot
         plateifu = plate_id
         
-        #Add bpt diagram
-
-        #check for pre existence of bpt plot:
-
-        #bpt_file=Path("/home/celeste/Documents/astro_research/astro_images/bpt_diagrams/bpt_" + str(plateifu) + ".png")
-        
         image = img.imread('/home/celeste/Documents/astro_research/astro_images/marvin_images/' + str(plateifu) + '.png')
-        
-        
-        """
-        if bpt_file.is_file():
-            a=fig.add_subplot(2, 3, 4)
-            image=img.imread("/home/celeste/Documents/astro_research/astro_images/bpt_diagrams/bpt_" + str(plateifu) + ".png")
-            lum_img = image[:,:,0]
-            a.axis('off')
-            imgplot=plt.imshow(image[90:500, 30:450])
-            need_new_plot=False
-        else:
-            print("Image not found. Plotting BPT manually...")
-            print(plateifu)
-        """
-        
         
         drpall = t.Table.read('/home/celeste/Documents/astro_research/drpall-v2_3_1.fits')
         r = hdulist['SPX_ELLCOO'].data[0, ...]
@@ -490,11 +426,6 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         #print("Axis ratio: ", axis) 
         #print("Mass is " + str(mass))
         
-#################################################################################
-#
-#   Mass of galaxy to get slope of average profile from Belfiore
-#  
-#################################################################################
         
         if mass > 10.75:
             m = -0.16878698011761817
@@ -530,7 +461,21 @@ for i in range(0, len(plate_num)): ##len(plate_num)
             for item in range(0, len(O_B[element])):
                 if O_B[element][item] >= 0:
                     zeros = True
-
+                    
+        ##Adds another subplot with the plateifu
+        a = fig.add_subplot(1,2,1)
+        print("plate ifu for plotting image" + plateifu)
+        #print(plateifu)
+        try:
+            image = img.imread('/home/celeste/Documents/astro_research/astro_images/marvin_images/' + plateifu + '.png')
+        except ValueError:
+            print("No image.")
+            print("========================================================================================")
+        lum_img = image[:,:,0]
+        #plt.subplot(121)
+        imgplot = plt.imshow(image)
+        plt.title("Galaxy "  + str(plate_number) + "-" + str(fiber_number))
+        
 #################################################################################
 #
 #   BPT Diagram Creator
@@ -539,7 +484,7 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
 #Sum the fluxes over a 3" center of the galaxy, put into is starforming
         
-        ax_bpt = fig.add_subplot(2, 3, 4)
+        ax_bpt = fig.add_subplot(1, 2, 2)
         if zeros == True:
             
             total=0
@@ -631,325 +576,5 @@ for i in range(0, len(plate_num)): ##len(plate_num)
 
        
 
-
-
-
-#################################################################################
-#
-#   Halpha Flux 2-D
-#  
-#################################################################################
-
-        a = fig.add_subplot(2,3,2)
-        
-        badpix = ((Ha/Ha_err) < 3)
-        Ha_2d = Ha
-        Ha_2d[badpix]=np.nan
-        contours_i[badpix]=np.nan
-        imgplot = plt.imshow(Ha_2d, cmap = "viridis", extent = shapemap, zorder = 1)
-        plt.title("H-alpha Flux")
-        #cs=plt.gca().contour(Ha_2d, 8, colors='k', alpha = 0.3, linewidths= [1], extent=shapemap, origin='upper', zorder = 3)
-        csss=plt.gca().contour(contours_i, 8, colors = 'k', alpha = 0.6, extent = shapemap, origin = 'upper', zorder = 4)
-        #plt.gca().clabel(cs, inline=1, fontsize=5)
-        css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='r', origin = 'upper', zorder = 2, z = 2)
-        
-        """
-        
-        plt.close()
-        plt.imshow(r_Re)
-        plt.colorbar()
-        plt.show()
-        print(r_Re)
-        
-        """
-
-        #plt.gca().clabel(css, inline=1)
-        plt.gca().invert_yaxis()
-        
-        #ec = patches.Ellipse(xy=(0,0), width=Re*ba*2, height=Re*2, angle=pa, linewidth = 4, edgecolor='k',fill=False, zorder = 3)
-        
-        #a.add_patch(ec)
-        
-        plt.xlabel('Arcseconds')
-        plt.ylabel('Arcseconds')
-        cb = plt.colorbar(shrink = .7)
-        #cb.set_label('F(H$\alpha$)', rotation = 270, labelpad = 25)
-        cb.set_label('H-alpha flux [$10^{17} {erg/s/cm^2/pix}$]', rotation = 270, labelpad = 25)
-        #plt.xlim, plt.ylim
-        
-        mask = hdulist['EMLINE_GVEL_MASK'].data[18,:,:]
-        
-        #make white be zero
-        #find min and max of velocity, whichever one's absolute value is larger, use as min and max
-
-        velocity[np.isinf(velocity)==True]=np.nan
-        #velocity[(np.isnan(snmap)==True)|(snmap==0)]=np.nan
-        velocity[mask != 0]=np.nan
-        velocity_err[np.isinf(velocity_err)==True]=np.nan
-
-        size=50
-        ##Makes a mask
-        #mask = (Ha==0).flatten()
-        ##Adds another subplot
-
-#################################################################################
-#
-#   Velocity Map
-#  
-#################################################################################
-        
-        a = fig.add_subplot(2,3,3)
-        ##Makes  a scatter plot of the data
-        badpix_vel = ((velocity_err) > 25)
-        velocity[badpix_vel]=np.nan
-        
-        vel_min = np.nanpercentile(velocity, 5)
-        vel_max = np.nanpercentile(velocity, 95)
-        
-        if abs(vel_min) > abs(vel_max):
-            vel_final = abs(vel_min)
-            want = vel_max
-        else:
-            vel_final = abs(vel_max)
-            want = vel_min
-
-            
-        print(vel_min)
-        print(vel_max)
-        
-        
-
-        imgplot = plt.imshow(velocity, origin = "lower", cmap = "RdYlBu_r", extent = shapemap, vmin = -vel_final, vmax = vel_final)
-        css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='green', origin = 'lower', zorder = 2, z = 1)
-        csss=plt.gca().contour(contours_i, 8, colors = 'k', alpha = 0.6, extent = shapemap, zorder = 4)
-        
-        plt.title("Gas Velocity")
-        
-
-        cb = plt.colorbar(shrink = .7)
-        if ((vel_min <=0) and (vel_max <=0)):
-            plt.clim(-vel_final, want)
-        else:
-            plt.clim(-vel_final,vel_final)
-        cb.set_label('km/s', rotation = 270, labelpad = 25)
-        a.set_facecolor('white')
-        
-#################################################################################
-#
-#   Plots Galaxy Image
-#  
-#################################################################################
-
-
-        ##Adds another subplot with the plateifu
-        a = fig.add_subplot(2,3,1)
-        print("plate ifu for plotting image" + plateifu)
-        #print(plateifu)
-        try:
-            image = img.imread('/home/celeste/Documents/astro_research/astro_images/marvin_images/' + plateifu + '.png')
-        except ValueError:
-            print("No image.")
-            print("========================================================================================")
-        lum_img = image[:,:,0]
-        #plt.subplot(121)
-        imgplot = plt.imshow(image)
-        plt.title("Galaxy "  + str(plate_number) + "-" + str(fiber_number))
-        
-
-#################################################################################
-#
-#   Metallicity Gradient with fitted Lines
-#  
-#################################################################################
-       
-			        
-
-        a = fig.add_subplot(2, 3, 6)
-        plt.xlabel("Effective Radii r/$R_e$")
-        plt.ylabel('12+log(O/H)')
-        #plt.scatter(r_Re.flatten(), logOH12.flatten(), s=size)
-        idx = np.isfinite(r_Re.flatten()) & np.isfinite(logOH12.flatten())
-        indarr=np.argsort(r_Re.flatten()[idx])
-        
-        yfit = [b + m * xi for xi in r_Re.flatten()[idx][indarr]]
-        try:
-            plt.tight_layout()
-        except ValueError:
-            print("all NaN")
-            print("==========================================================================================")
-            count_continue2=count_continue2+1
-        plt.plot(r_Re.flatten()[idx][indarr], yfit, color = "red", zorder = 3, label = 'Expected profile for stellar mass')
-        
-        
-     
-        def func(x, m, b):
-            return m*x+b
-        
-        abundance = logOH12
-        radius = r_Re
-            
-        trialX = np.linspace(np.amin(radius.ravel()), np.amax(radius.ravel()), 1000)
-        
-        cond_err = logOH12error.ravel()<np.nanpercentile(logOH12error.ravel(), 95)
-        max_err = np.nanpercentile(logOH12error.ravel(), 95)
-        max_err = 0.1
-        condition = (logOH12error.flatten() < max_err) & ((Ha/Ha_err).flatten() > 3) & ((s22/s22_err).flatten() >3) & ((s21/s21_err).flatten() > 3) & ((NII/n2_err).flatten() >3)
-        scatter_if(r_Re.flatten(), logOH12.flatten(), condition, s= 10, edgecolors = "black", color = "gray", zorder = 1)
-        plt.errorbar(r_Re.ravel()[condition], logOH12.ravel()[condition], yerr=logOH12error.ravel()[condition], fmt=None, errorevery = 45, capsize = 15, color = "black", zorder = 2)
-        
-        condition2 = (logOH12error < max_err) & ((Ha/Ha_err) > 3) & ((s22/s22_err) >3) & ((s21/s21_err) > 3) & ((NII/n2_err) >3)
-        logOH12_2=logOH12.copy()
-        logOH12_2[condition2==False]=np.nan
-        
-        rad_pix=hdulist['SPX_ELLCOO'].data[0,:,:]*2.0 #since there are 2 pixels/arcsec
-        rad, rp, n, sig =radial_profile(image=logOH12_2,distarr=rad_pix, radtype = 'weighted')
-        rad=rad/(2*Re) #This is now in units of Re.
-        
-        
-        valid = ~(np.isnan(rad) | np.isnan(rp) | np.isinf(rad) | np.isinf(rp) | ((rad < .5) | (rad > 2) ) | (n < 5))
-        
-        plt.plot(rad, rp, '.m', label = 'binned median', markersize =7, marker = 'D')
-        
-        try:
-            popt, pcov = curve_fit(func, rad[valid], rp[valid], check_finite = True)
-        except TypeError:
-            print("Improper input: N=2 must not exceed M=0")
-            failed_other = failed_other + str(plate_num[i]) + "-" + str(fiber_num[i]) + "\n"
-            print("failed on the TYPE ERROR.")
-            print("==========================================================================================")
-            plt.close('all')
-            count_continue=count_continue3+1
-            continue
-        plt.plot(rad[valid], func(rad[valid], *popt), 'cyan', label = '0.5-2 $R_e$ fit', linewidth = 5)
-
-        
-        plt.legend()
-        plt.title("Metallicity Gradient")
-        plt.xlim(xmin = 0)
-        
-#################################################################################
-#
-#   Metallicity Radial Plot 3-D
-#  
-#################################################################################
-     
-        
-
-        shape = (logOH12.shape[1])
-        shapemap = [-.25*shape, .25*shape, -.25*shape, .25*shape]
-
-        #logOH12_flat = logOH12.flatten()
-        
-
-        #print("--------")
-			
-        matplotlib.rcParams.update({'font.size': 20})
-        #Second image we want?
-        #plt.plot(hd2[0], Ha[7])
-        #sky coordinates relative to center
-        #exent = .5
-        logOH12[np.isinf(logOH12)==True]=np.nan
-        
-        
-        badpix = (logOH12error > max_err) | ((Ha/Ha_err) < 3) | ((s22/s22_err) < 3) | ((s21/s21_err) < 3) | ((NII/n2_err) < 3) |  (ew_cut < 3)
-        logOH12[badpix]=np.nan
-        
-        minimum = np.nanpercentile(logOH12, 5)
-        maximum = np.nanpercentile(logOH12, 95)
-        median = np.nanpercentile(logOH12, 50)
-        
-
-        Ha_contour = Ha
-        Ha_contour[badpix]=np.nan
-        contours_i_same[badpix]=np.nan
-        
-        a = fig.add_subplot(2,3,5)
-        try:
-            plt.tight_layout()
-        except ValueError:
-            print("all NaN")
-            print("==========================================================================================")
-            
-        if ((maximum - minimum) < .2):
-            maximum = median + 0.1
-            minimum = median - 0.1
-        
-        
-        #badpix=np.where((np.isnan(radius)==True) | (np.isnan(abundance)==True)
-        #issf[badpix]=np.nan
-
-            
-        imgplot = plt.imshow(logOH12, cmap = "viridis", extent = shapemap, vmin = minimum, vmax = maximum, zorder = 1)
-
-        plt.title("Metallicity Map")
-        
-            
-        #write if statement 
-        """
-        good=np.where(logOH12!=None)
-        total=len(good[1])
-        if total >=100:
-            cs=plt.gca().contour(logOH12, 8, colors='k', extent = shapemap, origin="upper")
-        """
-        try:
-            #cs=plt.gca().contour(Ha_contour, 8, colors='k', alpha = 0.3, linewidths= [1], extent=shapemap, origin='upper', zorder = 2)
-            csss=plt.gca().contour(contours_i_same, 8, colors = 'k', alpha = 0.6, extent = shapemap, origin = 'upper', zorder = 3)
-            #plt.contour(logOH12, 20, colors='k')
-        except ValueError:
-            print("Value error! Skipping the log0H12 contour plotting....")
-            print("==========================================================================================")
-        #plt.gca().clabel(cs, inline=1, fontsize=5)
-        
-
-        css = plt.gca().contour(r_Re*2,[2],extent=shapemap, colors='red', origin = 'upper', alpha = .6, zorder = 2, z = 1, edgecolors = "black")
-
-
-        #plt.gca().clabel(css)
-
-        plt.gca().invert_yaxis()
-        #plt.gca().invert_yaxis()
-
-        plt.xlabel('Arcseconds')
-        plt.ylabel('Arcseconds')
-        cb = plt.colorbar(shrink = .7)
-        cb.set_label('12+log(O/H)', rotation = 270, labelpad = 25)
-        #plt.xlim, plt.ylim
-        
-        """
-        
-        plt.close()
-        
-        fig = plt.figure(figsize=(30,18))
-        
-        a = fig.add_subplot(1, 1, 1)
-        imgplot = plt.imshow(r_Re, cmap = "viridis", extent = shapemap, zorder = 1)
-        cs=plt.gca().contour(r_Re, 8, colors='k', extent=shapemap, origin='upper', zorder = 2)
-        plt.gca().clabel(cs, inline=1, fontsize=5)
-
-        
-        ec = patches.Ellipse(xy=(0,0), width=Re*ba*2, height=Re*2, angle=pa+90, linewidth = 4, edgecolor='k',fill=False, zorder = 3)
-        
-        
-        a.add_patch(ec)
-        
-        plt.gca().invert_yaxis()
-        
-        plt.show()
-        """
-     
-       
-
-            
-        ##Saves the final image
-        print("Saving...")
-        ##plt.show()
-        plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/TERABYTE/MPL7/logcube_' + plateifu +"_v5.2.png", bbox_inches = 'tight', dpi = 84)
-        #plt.savefig('/home/celeste/Documents/astro_research/manga_images/final_images/star_faceon_' + plateifu +"_v4.1.png", bbox_inches = 'tight')
-        #plt.savefig('/home/celeste/Documents/astro_research/thesis_git/show_adam/gaalxy_faceon_average_line_' + plateifu +".png", bbox_inches = 'tight')
         #plt.show()
-        plt.close('all')
-        print("Done with this one.")
-        print("--------------------------------------------------")
-print(failed_logcube)
-print(failed_maps)
-print(failed_other)
+        plt.savefig('/home/celeste/Documents/astro_research/paper_plots/bpt_dia/bpt_dia_image_' + str(plate_id) + '.png')

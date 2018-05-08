@@ -30,12 +30,12 @@ i=mags[:,5]
 
 mass_total = np.log10(drpall[1].data['nsa_elpetro_mass'])-np.log10(.49)
 
-plt.scatter(mass_total, g-r, c = 'g', alpha = 0.5)
-plt.scatter(mass_total, r-i, c = 'r', alpha = 0.5)
-plt.scatter(mass_total, u-r, c = 'b', alpha = 0.5)
+plt.scatter(mass_total, g-i, c = 'g', alpha = 0.5)
+#plt.scatter(mass_total, r-i, c = 'r', alpha = 0.5)
+#plt.scatter(mass_total, u-r, c = 'b', alpha = 0.5)
 plt.xlabel("$Log_{10}$ Stellar Mass")
 xmin, xmax = 8.5, 12
-ymin, ymax = -1, 3.5
+ymin, ymax = -1, 2
 plt.xlim(xmin, xmax)
 plt.ylim(ymin, ymax)
 
@@ -86,6 +86,8 @@ for x in range(0, len(plate_num)):
 print(mass_new)
 print(np.asarray(coloru_new)-np.asarray(colorr_new))
 plt.scatter(mass_new, np.asarray(colorg_new)-np.asarray(colori_new), c='black')
-plt.show()
+plt.ylabel("g-i color")
+plt.savefig("g-i_color.png")
+plt.close()
 
 
