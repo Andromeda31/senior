@@ -22,6 +22,12 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #############################################################################################
 
+def func(x, m, b):
+    return m*x+b
+    
+def func_slope(x,m,b):
+    return m
+
 def n2s2_dopita16_w_errs(ha,n22,s21,s22,ha_err,n22_err,s21_err,s22_err):
     '''
     N2S2 metallicity diagnostic from Dopita et al. (2016)
@@ -204,7 +210,7 @@ plt.tight_layout()
 plt.title('Best Descriptors\nof O/H Map', y=0.94)
 plt.axis('equal')
 #plt.show()
-plt.savefig("/home/celeste/Documents/astro_research/paper_plots/analysis_plots/pie_graph_q2a.png")
+#plt.savefig("/home/celeste/Documents/astro_research/paper_plots/analysis_plots/pie_graph_q2a.png")
 plt.close('all')
 
 #####################################################################
@@ -272,7 +278,7 @@ plt.ylabel('Percent')
 plt.xlabel('$log_{10}$ Stellar Mass')
 
 #plt.show()
-plt.savefig("/home/celeste/Documents/astro_research/paper_plots/analysis_plots/line_plot_q2.png")
+#plt.savefig("/home/celeste/Documents/astro_research/paper_plots/analysis_plots/line_plot_q2.png")
 plt.close('all')
 
 #####################################################################
@@ -293,7 +299,7 @@ plt.tight_layout()
 plt.axis('equal')
 plt.title('Best Descriptors of O/H Radial Profile', y = .98)
 #plt.show()
-plt.savefig("/home/celeste/Documents/astro_research/paper_plots/analysis_plots/pie_graph_q3a.png")
+#plt.savefig("/home/celeste/Documents/astro_research/paper_plots/analysis_plots/pie_graph_q3a.png")
 plt.close('all')
 
 #####################################################################
@@ -313,14 +319,15 @@ binsize = 0.5
 slope_arr = []
 new_mass_arr = []
 
+
 for x in range(0, len(mass_arr)):
     if linear[x] == 1:
         new_mass_arr.append(mass_arr[x])
-        iden = plateid[x]
-        
+        iden = hdr[x][0]
+        print(iden)
         ###########################################################
-        hdulist = fits.open('/media/celeste/Hypatia/MPL7/HYB/allmaps/manga-' + str(iden[x])  + '-MAPS-HYB10-GAU-MILESHC.fits.gz')
-        logcube = fits.open('/media/celeste/Hypatia/MPL7/LOGCUBES/manga-'+ str(iden[x]) + '-LOGCUBE.fits.gz')
+        hdulist = fits.open('/media/celeste/Hypatia/MPL7/HYB/allmaps/manga-' + str(iden)  + '-MAPS-HYB10-GAU-MILESHC.fits.gz')
+        logcube = fits.open('/media/celeste/Hypatia/MPL7/LOGCUBES/manga-'+ str(iden) + '-LOGCUBE.fits.gz')
         plate_id = hdulist['PRIMARY'].header['PLATEIFU']
         
         Ha = hdulist['EMLINE_GFLUX'].data[18,...]
@@ -344,10 +351,11 @@ for x in range(0, len(mass_arr)):
         s22_err = errs[21,:,:]
         
         logOH12, logOH12error = n2s2_dopita16_w_errs(H_alpha, NII, s21, s22, Ha_err, n2_err, s21_err, s22_err)
+        max_err = 0.1
         
         drpall = t.Table.read('/home/celeste/Documents/astro_research/drpall-v2_3_1.fits')
         r = hdulist['SPX_ELLCOO'].data[0, ...]
-        obj = drpall[drpall['plateifu']==plateifu][0]
+        obj = drpall[drpall['plateifu']==plate_id][0]
         #nsa_sersic_ba for axis ratio
         #axis=drpall['nsa_sersic_ba'].data[0, ...]
         Re = obj['nsa_elpetro_th50_r']
@@ -356,35 +364,38 @@ for x in range(0, len(mass_arr)):
         #radius of each spec in 
         r_Re = r/Re	
         r_Re = hdulist['SPX_ELLCOO'].data[1]
-        rad, rp, n, sig =radial_profile(image=logOH12_2,distarr=rad_pix, radtype = 'weighted')
-        rad=rad/(2*Re) #This is now in units of Re.
+        
         
         logOH12_2=logOH12.copy()
         condition2 = (logOH12error < max_err) & ((Ha/Ha_err) > 3) & ((s22/s22_err) >3) & ((s21/s21_err) > 3) & ((NII/n2_err) >3)
         logOH12_2[condition2==False]=np.nan
         
+        rad_pix=hdulist['SPX_ELLCOO'].data[0,:,:]*2.0 #since there are 2 pixels/arcsec
+        rad, rp, n, sig =radial_profile(image=logOH12_2,distarr=rad_pix, radtype = 'weighted')
+        rad=rad/(2*Re) #This is now in units of Re.
+        valid = ~(np.isnan(rad) | np.isnan(rp) | np.isinf(rad) | np.isinf(rp) | ((rad < .5) | (rad > 2) ) | (n < 5))
+        
         popt, pcov = curve_fit(func, rad[valid], rp[valid], check_finite = True)
         
         valid = ~(np.isnan(rad) | np.isnan(rp) | np.isinf(rad) | np.isinf(rp) | ((rad < .5) | (rad > 2) ) | (n < 5))
         
-        slopeity = func(rad[valid], *popt)
+        slopeity = func_slope(rad[valid], *popt)
         
-        def func(x, m, b):
-            return m
+        print(str(slopeity) + " slope")
             
         slope_arr.append(slopeity)
     else:
         continue
         
 plt.scatter(new_mass_arr, slope_arr, color = "lightcoral")
-plt.show()
+#plt.show()
 
 
 #plt.scatter(mass_arr, slope_arr, color = "lightcoral")
 
-plt.title('Expected Slope of Galaxy by Mass', y = 1.01)
+plt.title('Slope of Linearly Well Fit Galaxies by Mass', y = 1.01)
 #plt.show()
-plt.ylabel("Percent")
+plt.ylabel("Slope")
 plt.xlabel('$log_{10}$ Stellar Mass')
 
 figure = plt.gcf() # get current figure
