@@ -22,10 +22,56 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #############################################################################################
 
+def n2s2_dopita16_w_errs(ha,n22,s21,s22,ha_err,n22_err,s21_err,s22_err):
+    '''
+    N2S2 metallicity diagnostic from Dopita et al. (2016)
+    includes a calculation of the errors
+    '''
+    y=np.log10(n22/(s21+s22))+0.264*np.log10(n22/ha)
+    s2=s21+s22
+    s2_err=np.sqrt(s21_err**2 + s22_err**2)
+    met_err=(1.0/np.log(10)) * np.sqrt( (1+0.264**2)*(n22_err/n22)**2 + (s2_err/s2)**2 + (ha_err/ha)**2 )
+    met=8.77+y
+    return met, met_err
+    
+def radial_profile(image,centre=None,distarr=None,mask=None,binwidth=2,radtype='unweighted'):
+    '''
+    image=2D array to calculate RP of.
+    centre=centre of image in pixel coordinates. Not needed if distarr is given.
+    distarr=2D array giving distance of each pixel from the centre.
+    mask = 2D array, 1 if you want to include given pixels, 0 if not.
+    binwidth= width of radial bins in pixels.
+    radtype='weighted' or 'unweighted'. Weighted will give you the average radius of pixels in the bin. Unweighted will give you the middle of each radial bin.
+    '''
+    distarr=distarr/binwidth
+    if centre is None:
+        centre=np.array(image.shape,dtype=float)/2
+    if distarr is None:
+        y,x=np.indices(image.shape)
+        distarr=np.sqrt((x-centre[0])**2 + (y-centre[1])**2)
+    if mask is None:
+        mask=np.ones(image.shape)
+    rmax=int(np.max(distarr))
+    r_edge=np.linspace(0,rmax,rmax+1)
+    rp=np.zeros(len(r_edge)-1)*np.nan
+    nums=np.zeros(len(r_edge)-1)*np.nan
+    sig=np.zeros(len(r_edge)-1)*np.nan
+    r=np.zeros(len(r_edge)-1)*np.nan
+    for i in range(0,len(r)):
+        rp[i]=np.nanmean(image[np.where((distarr>=r_edge[i]) & (distarr<r_edge[i+1]) & (mask==1.0) & (np.isinf(image)==False))])
+        nums[i]=len(np.where((distarr>=r_edge[i]) & (distarr<r_edge[i+1]) & (mask==1.0) & (np.isinf(image)==False) & (np.isnan(image)==False))[0])
+        sig[i]=np.nanstd((image[np.where((distarr>=r_edge[i]) & (distarr<r_edge[i+1]) & (mask==1.0) & (np.isinf(image)==False))]))
+        if radtype=='unweighted':
+            r[i]=(r_edge[i]+r_edge[i+1])/2.0
+        elif radtype=='weighted':
+            r[i]=np.nanmean(distarr[np.where((distarr>=r_edge[i]) & (distarr<r_edge[i+1]) & (mask==1.0) & (np.isinf(image)==False))])
+    r=r*binwidth
+    return r,rp,nums,sig
+
 '''COMMENT  *** Column names ***                                                   COMMENT                                                                         TTYPE1  = 'PLATEIFU'           /                                                TTYPE2  = 'MANGAID '           /                                                TTYPE3  = 'RA      '           /                                                TTYPE4  = 'DEC     '           /                                                TTYPE5  = 'Z       '           /                                                TTYPE6  = 'FNUGRIZ_ABSMAG'     /                                                TTYPE7  = 'LOG_MASS'           /                                                TTYPE8  = 'SUBJECT_ID'         /                                                TTYPE9  = 'NCLASS  '           /                                                TTYPE10 = 'BAD_RE  '           /                                                TTYPE11 = 'BAD_RE_ERR'         /                                                TTYPE12 = 'PA_SHIFT'           /                                                TTYPE13 = 'PA_SHIFT_ERR'       /                                                TTYPE14 = 'KINE_TWIST'         /                                                TTYPE15 = 'KINE_TWIST_ERR'     /                                                TTYPE16 = 'DISTURBED_KINE'     /                                                TTYPE17 = 'DISTURBED_KINE_ERR' /                                                TTYPE18 = 'MERGING '           /                                                TTYPE19 = 'MERGING_ERR'        /                                                TTYPE20 = 'SYMMETRIC_OH'       /                                                TTYPE21 = 'SYMMETRIC_OH_ERR'   /                                                TTYPE22 = 'DISTORTED_OH'       /                                                TTYPE23 = 'DISTORTED_OH_ERR'   /                                                TTYPE24 = 'CHAOTIC_OH'         /                                                TTYPE25 = 'CHAOTIC_OH_ERR'     /                                                TTYPE26 = 'BAD_OH  '           /                                                TTYPE27 = 'BAD_OH_ERR'         /                                                TTYPE28 = 'LOW_KNOTS'          /                                                TTYPE29 = 'LOW_KNOTS_ERR'      /                                                TTYPE30 = 'HIGH_KNOTS'         /                                                TTYPE31 = 'HIGH_KNOTS_ERR'     /                                                TTYPE32 = 'LINEAR_OHGRAD'      /                                                TTYPE33 = 'LINEAR_OHGRAD_ERR'  /                                                TTYPE34 = 'SLOPE_CHANGE'       /                                                TTYPE35 = 'SLOPE_CHANE_ERR'    /                                                TTYPE36 = 'IRREGULAR_OHGRAD'   /                                                TTYPE37 = 'IRREGULAR_OHGRAD_ERR' /                                              TTYPE38 = 'BAD_OHGRAD'         /                                                TTYPE39 = 'BAD_OHGRAD_ERR'     /
 '''
 
-hdul = fits.open('/home/celeste/Documents/astro_research/thesis_git/zooinverse_summary_v0.fits')
+hdul = fits.open('/home/celeste/Documents/astro_research/thesis_git/zooinverse_summary_v1.fits')
 
 print(hdul[1].header)
 hdr = hdul[1].data
@@ -60,6 +106,7 @@ m = 0
 b = 0
 
 slope = []
+linear = []
 
 for x in range(0, len(hdr)):
     plateid = hdr[x][0]
@@ -87,35 +134,10 @@ for x in range(0, len(hdr)):
     irr_grad = irr_grad + int(round(hdr[x][35]+.01))
     slope_ch = slope_ch + int(round(hdr[x][33]+.01))
     lin_grad = lin_grad + int(round(hdr[x][31]+.01))
+    linear.append(int(round(hdr[x][31]+.01)))
+    
     
     mass = log_mass
-    
-    if mass > 10.75:
-        m = -0.16878698011761817
-        b = 8.92174257450408
-    if mass > 10.50 and mass <= 10.75:
-        m = -0.19145937059393828
-        b = 8.898917413495317
-    if mass > 10.25 and mass <= 10.50:
-        m = -0.16938127151421675
-        b = 8.825998835583249
-    if mass > 10.00 and mass <= 10.25:
-        m = -0.1762907767970223
-        b = 8.713865209075324
-    if mass > 9.75 and mass <= 10.00:
-        m = -0.14756252418062643
-        b = 8.59167993089605
-    if mass > 9.50 and mass <= 9.75:
-        m = -0.07514461331863775
-        b = 8.36144939226056
-    if mass > 9.25 and mass <= 9.50:
-        m = -0.05300368644036175
-        b = 8.26602769508888
-    if mass <= 9.25:
-        m = -0.05059620593888811
-        b = 8.147647436306206
-            
-    slope.insert(x, m)
     
     total = total + 1
     
@@ -143,8 +165,9 @@ def autolabel(rects):
     """
     for rect in rects:
         height = rect.get_height()
+        print(height)
         ax.text(rect.get_x() + rect.get_width()/2., height,
-                '%1.1d%%' % height,
+                '%0.1f%%' % height,
                 ha='center', va='bottom')
                 
 autolabel(rects1)
@@ -178,7 +201,7 @@ explode = (0.1, 0, 0, 0)  # explode 1st slice
 plt.pie(sizes, colors=colors, autopct='%1.1f%%', shadow=True, startangle=90)
 plt.legend(labels, loc = 'best')
 plt.tight_layout()
-plt.title('Best Descriptors of O/H Map')
+plt.title('Best Descriptors\nof O/H Map', y=0.94)
 plt.axis('equal')
 #plt.show()
 plt.savefig("/home/celeste/Documents/astro_research/paper_plots/analysis_plots/pie_graph_q2a.png")
@@ -229,7 +252,6 @@ bins = np.asarray(bins)
 
 #print(bins[:,0])
 
-print(x)
 
 plt.xlim(min_mass-.15, max_mass+.15)
 labels = ['Symmetric O/H Map', 'Distorted O/H Contours', 'Disturbed, Chaotic O/H', 'Bad O/H Map']
@@ -269,7 +291,7 @@ plt.pie(sizes, colors=colors, autopct='%1.1f%%', shadow=True, startangle=90)
 plt.legend(labels, loc = 'best')
 plt.tight_layout()
 plt.axis('equal')
-plt.title('Best Descriptors of O/H Radial Profile')
+plt.title('Best Descriptors of O/H Radial Profile', y = .98)
 #plt.show()
 plt.savefig("/home/celeste/Documents/astro_research/paper_plots/analysis_plots/pie_graph_q3a.png")
 plt.close('all')
@@ -282,4 +304,91 @@ plt.close('all')
 
 #####################################################################
 
+
+max_mass = 11
+min_mass = 8.5
+binsize = 0.5
+
+
+slope_arr = []
+new_mass_arr = []
+
+for x in range(0, len(mass_arr)):
+    if linear[x] == 1:
+        new_mass_arr.append(mass_arr[x])
+        iden = plateid[x]
+        
+        ###########################################################
+        hdulist = fits.open('/media/celeste/Hypatia/MPL7/HYB/allmaps/manga-' + str(iden[x])  + '-MAPS-HYB10-GAU-MILESHC.fits.gz')
+        logcube = fits.open('/media/celeste/Hypatia/MPL7/LOGCUBES/manga-'+ str(iden[x]) + '-LOGCUBE.fits.gz')
+        plate_id = hdulist['PRIMARY'].header['PLATEIFU']
+        
+        Ha = hdulist['EMLINE_GFLUX'].data[18,...]
+        Hb = hdulist['EMLINE_GFLUX'].data[1,...]
+        snmap = hdulist['SPX_SNR'].data
+        fluxes = hdulist['EMLINE_GFLUX'].data
+        #errs = hdulist['EMLINE_GFLUX_ERR'].data
+        errs=(hdulist['EMLINE_GFLUX_IVAR'].data)**-0.5
+        H_alpha = fluxes[18,:,:]
+        Ha = H_alpha
+        Ha_err = errs[18,:,:]
+        OIII = fluxes[13,:,:]
+        o3_err = errs[13,:,:]
+        H_beta = fluxes[11,:,:]
+        Hb_err = errs[11,:,:]
+        n2_err = errs[19,:,:]
+        NII = fluxes[19,:,:]
+        s21 = fluxes[20,:,:]
+        s22 = fluxes[21,:,:]
+        s21_err = errs[20,:,:]
+        s22_err = errs[21,:,:]
+        
+        logOH12, logOH12error = n2s2_dopita16_w_errs(H_alpha, NII, s21, s22, Ha_err, n2_err, s21_err, s22_err)
+        
+        drpall = t.Table.read('/home/celeste/Documents/astro_research/drpall-v2_3_1.fits')
+        r = hdulist['SPX_ELLCOO'].data[0, ...]
+        obj = drpall[drpall['plateifu']==plateifu][0]
+        #nsa_sersic_ba for axis ratio
+        #axis=drpall['nsa_sersic_ba'].data[0, ...]
+        Re = obj['nsa_elpetro_th50_r']
+        pa = obj['nsa_elpetro_phi']
+        ba = obj['nsa_elpetro_ba']
+        #radius of each spec in 
+        r_Re = r/Re	
+        r_Re = hdulist['SPX_ELLCOO'].data[1]
+        rad, rp, n, sig =radial_profile(image=logOH12_2,distarr=rad_pix, radtype = 'weighted')
+        rad=rad/(2*Re) #This is now in units of Re.
+        
+        logOH12_2=logOH12.copy()
+        condition2 = (logOH12error < max_err) & ((Ha/Ha_err) > 3) & ((s22/s22_err) >3) & ((s21/s21_err) > 3) & ((NII/n2_err) >3)
+        logOH12_2[condition2==False]=np.nan
+        
+        popt, pcov = curve_fit(func, rad[valid], rp[valid], check_finite = True)
+        
+        valid = ~(np.isnan(rad) | np.isnan(rp) | np.isinf(rad) | np.isinf(rp) | ((rad < .5) | (rad > 2) ) | (n < 5))
+        
+        slopeity = func(rad[valid], *popt)
+        
+        def func(x, m, b):
+            return m
+            
+        slope_arr.append(slopeity)
+    else:
+        continue
+        
+plt.scatter(new_mass_arr, slope_arr, color = "lightcoral")
+plt.show()
+
+
+#plt.scatter(mass_arr, slope_arr, color = "lightcoral")
+
+plt.title('Expected Slope of Galaxy by Mass', y = 1.01)
+#plt.show()
+plt.ylabel("Percent")
+plt.xlabel('$log_{10}$ Stellar Mass')
+
+figure = plt.gcf() # get current figure
+figure.set_size_inches(12, 9)
+plt.savefig("/home/celeste/Documents/astro_research/paper_plots/analysis_plots/line_plot_q3b.png")
+plt.close('all')
 
