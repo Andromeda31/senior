@@ -380,14 +380,16 @@ for x in range(0, len(mass_arr)):
         valid = ~(np.isnan(rad) | np.isnan(rp) | np.isinf(rad) | np.isinf(rp) | ((rad < .5) | (rad > 2) ) | (n < 5))
         
         slopeity = func_slope(rad[valid], *popt)
+        sloop = popt[0]
         
         print(str(slopeity) + " slope")
+        print(sloop)
             
         slope_arr.append(slopeity)
     else:
         continue
         
-plt.scatter(new_mass_arr, slope_arr, color = "lightcoral")
+plt.scatter(new_mass_arr, slope_arr, color = "lightcoral", edgecolors="black")
 #plt.show()
 
 
@@ -397,6 +399,7 @@ plt.title('Slope of Linearly Well Fit Galaxies by Mass', y = 1.01)
 #plt.show()
 plt.ylabel("Slope")
 plt.xlabel('$log_{10}$ Stellar Mass')
+plt.ylim(-.5, 0.05)
 
 figure = plt.gcf() # get current figure
 figure.set_size_inches(12, 9)

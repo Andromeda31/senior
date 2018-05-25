@@ -230,8 +230,8 @@ Bad Plots?
 
 """
     
-#plate_num=['9194']
-#fiber_num = ['12701']
+plate_num=['7960']
+fiber_num = ['12701']
 #plate_num = ['8252', '8338', '8568', '9865']
 #fiber_num = ['12705', '12701', '12702', '12705']
 
@@ -403,6 +403,17 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ##places text on the plot
         plateifu = plate_id
         
+        '''
+        
+        r = requests.get('https://data.sdss.org/sas/mangawork/manga/spectro/redux/v2_3_1/' + str(plate_num[i]) + '/stack/images/' + str(fiber_num[i]) + '.png', auth=('sdss', '2.5-meters'))
+        
+
+        ##Saves the image
+        with open('/home/celeste/Documents/astro_research/astro_images/marvin_images/' + str(plate_id) + '.png', 'wb') as fd:
+	        for chunk in r.iter_content(chunk_size=128):
+		        fd.write(chunk)
+		'''
+        
         image = img.imread('/home/celeste/Documents/astro_research/astro_images/marvin_images/' + str(plateifu) + '.png')
         
         drpall = t.Table.read('/home/celeste/Documents/astro_research/drpall-v2_3_1.fits')
@@ -541,6 +552,8 @@ for i in range(0, len(plate_num)): ##len(plate_num)
         ax_bpt.set_xlim(xmin, xmax)
         ax_bpt.set_ylim(ymin, ymax)
         ax_bpt.set_aspect((xmax-xmin)/(ymax-ymin))
+        ax_bpt.set_xlabel('Log([NII]/H$\\alpha$)')
+        ax_bpt.set_ylabel('Log([OIII]/H$\\beta$)')
         
         #cb_max = math.ceil(np.amax(r_Re))
         
